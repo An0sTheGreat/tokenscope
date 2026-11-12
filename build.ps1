@@ -1,5 +1,8 @@
-# Builds dist\Tokenscope.exe (framework-dependent single file; needs the .NET 10 desktop runtime
-# and the WebView2 runtime on the machine). Stops at the first failing step.
+# Builds dist\Tokenscope.exe as a single file. Stops at the first failing step.
+#   ./build.ps1              small (about 6 MB); needs the .NET 10 desktop runtime on the machine
+#   ./build.ps1 -Standalone  carries its own .NET runtime; this is the release download
+# Both need the WebView2 runtime, which ships with Windows 11 and current Windows 10.
+param([switch]$Standalone)
 $ErrorActionPreference = 'Stop'
 Push-Location $PSScriptRoot   # restored in the finally block, so the caller's shell stays where it was
 try {
@@ -13,8 +16,8 @@ function Step($name, [scriptblock]$run) {
 Step 'Fetch engine' { node scripts/fetch-engine.mjs }
 Step 'UI tests' { node --test "tests/*.test.mjs" }
 Step 'Publish' {
-    dotnet publish src/Tokenscope -c Release -r win-x64 --self-contained false `
-        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
+    dotnet publish src/Tokenscope -c Release -r win-x64 --self-contained $Standalone `
+        -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=$Standalone -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none `
         -o dist --nologo -v quiet
 }
 Step 'Host self-check' {

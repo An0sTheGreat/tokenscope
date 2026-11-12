@@ -34,7 +34,13 @@ All screenshots show generated demo data.
 
 ## Get it running
 
-You need Windows 10 or 11 with the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Node.js](https://nodejs.org) 20 or later. The WebView2 runtime ships with Windows 11 and current Windows 10.
+**[Download Tokenscope.exe](https://github.com/An0sTheGreat/tokenscope/releases/latest/download/Tokenscope.exe)** and double-click it. That's the whole install: one file, nothing to set up, works on Windows 10 and 11 (64-bit).
+
+The exe is not code-signed, so Windows SmartScreen may warn the first time; choose **More info**, then **Run anyway**. The first load reads every log file and can take 10 seconds or more; after that the last results appear instantly while fresh ones load.
+
+### Build it yourself
+
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and [Node.js](https://nodejs.org) 20 or later.
 
 ```powershell
 git clone https://github.com/An0sTheGreat/tokenscope.git
@@ -43,7 +49,7 @@ cd tokenscope
 dist/Tokenscope.exe
 ```
 
-`build.ps1` downloads the pinned ccusage engine, runs the tests, publishes a single 6 MB `Tokenscope.exe` and checks that it starts. The first load reads every log file and can take 10 seconds or more; after that the last results appear instantly while fresh ones load.
+`build.ps1` downloads the pinned ccusage engine, runs the tests, publishes a single `Tokenscope.exe` and checks that it starts. Add `-Standalone` to bundle the .NET runtime, as the release download does.
 
 Shortcuts: `1`–`6` switch screens, `R` refreshes.
 

@@ -271,6 +271,7 @@ sealed class MainForm : Form
     [DllImport("dwmapi.dll")]
     static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
     const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    const int DWMWA_BORDER_COLOR = 34, DWMWA_CAPTION_COLOR = 35, DWMWA_TEXT_COLOR = 36;   // Windows 11; ignored on Windows 10
 
     static bool SystemIsDark() =>
         Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) is 0;
@@ -282,6 +283,8 @@ sealed class MainForm : Form
     }
 
     // Title bar and background (shown before the page paints) follow the theme: Windows' app theme unless the UI overrides it.
+    // The colours are --color-bg-grouped and --color-label from ui/design/tokens.css, so the title bar
+    // is one surface with the page instead of a Windows-coloured strip above it.
     void ApplyTheme()
     {
         bool dark = theme == "dark" || (theme == "system" && SystemIsDark());
@@ -290,5 +293,9 @@ sealed class MainForm : Form
         if (!IsHandleCreated) return;
         int on = dark ? 1 : 0;
         DwmSetWindowAttribute(Handle, DWMWA_USE_IMMERSIVE_DARK_MODE, ref on, sizeof(int));
+        int surface = ColorTranslator.ToWin32(BackColor), label = ColorTranslator.ToWin32(dark ? Color.White : Color.Black);
+        DwmSetWindowAttribute(Handle, DWMWA_CAPTION_COLOR, ref surface, sizeof(int));
+        DwmSetWindowAttribute(Handle, DWMWA_BORDER_COLOR, ref surface, sizeof(int));
+        DwmSetWindowAttribute(Handle, DWMWA_TEXT_COLOR, ref label, sizeof(int));
     }
 }
