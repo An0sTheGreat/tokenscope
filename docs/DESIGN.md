@@ -422,7 +422,7 @@ Each recipe ends with: run `node --test "tests/*.test.mjs"` (must pass), then lo
 1. Create `src/Tokenscope/ui/views/<id>.js`. Copy the smallest existing view (`projects.js`) as the pattern. Export:
    - `id`, `title`, `tile` (the sidebar tile colour, a `var(--cat-n)` string) and `icon` (a function returning `icon('<name>')` from `kit.js`; add the glyph's path to `ICONS` there).
    - `render(el, ctx, params)`: fill `el` (a `ts-stack` the shell provides) with `el.replaceChildren(…)`. It runs on navigation and on every data or filter change, so it must be idempotent. Add `ts-enter` (via `card({ enter: ctx.animate })`) only when `ctx.animate` is true.
-   - Optional: `renderLive(el, ctx)` (called on the periodic blocks-only refresh; replace just the live part, marked `data-live`), `reset()` (clear per-visit state such as a search box), `filters = false` (no source/range row), `agentFilter = false` (range only), `needsData = false` (render even before data exists).
+   - Optional: `renderLive(el, ctx)` (called on the periodic blocks-only refresh; replace just the live part, marked `data-live`), `reset()` (clear per-visit state such as a search box), `filters = false` (no source/range row), `agentFilter = false` (no source chips), `machineFilter = false` (no PC chips; for a screen that selects PCs itself, like Machines), `needsData = false` (render even before data exists).
 2. Register it in the `VIEWS` array in `app.js`. The sidebar pill supports 8 items; the number shortcuts follow the array order.
 3. Build from `kit.js`, not from raw markup: `card`, `stat`, `row` + `list`, `dataTable`, `segmented`, `switchInput`, `chip`, `toolbar`, `empty`, `modelList`. Lay out with `ts-grid ts-grid--stats` / `ts-grid--split`. Always handle the empty case with `empty({ … })`.
 4. Read data from `ctx.vm` (already filtered; `ctx.vm.all` is unfiltered) and derive with `shape.js` helpers (`totals`, `aggregate`, `modelSplit`…). Format with `format.js`. If a derivation is missing, add a pure, tested function to `shape.js`. Do not compute in the view.
@@ -430,6 +430,13 @@ Each recipe ends with: run `node --test "tests/*.test.mjs"` (must pass), then lo
 6. Local view state (a sort, a toggle) lives in module variables; re-render only the part that changes (see `update()` in `reports.js`) so controls keep their animation and focus.
 7. Views never call the engine or `bridge.js`. Use `ctx.actions` (`navigate`, `setFilter`, `setSetting`, `refresh`, `exportData`, `openExternal`).
 8. Verify (tests, then light and dark, at 1280×820 and 960×640).
+
+### Screen layout patterns
+- **Stat row first.** A screen that summarises opens with `ts-grid ts-grid--stats` (four `stat()` cards). Everything below should sit on those four columns.
+- **Lower cards on the same columns.** Use `ts-grid--halves`, and nest a second `ts-grid--halves` inside one half for quarter-width cards. Overview does this: Recent sessions (half) above Activity and Active block (a quarter each), beside Models (half, full height). Do not use `ts-grid--split` under a stat row; its 2:1 columns do not line up with it.
+- **Cards in a row share a height.** `--halves` and `--stats` stretch their cells, so a short card grows rather than leaving a gap beside a tall one. Put the card whose content can grow (a ranked list) in the cell that sets the height.
+- **Small cards carry small charts.** In a quarter-width card pass fewer points (Overview's heatmap shows 16 weeks) and drop legends (`legend: false`).
+- **The filter row** holds source chips, then PC chips (only when a second PC exists), then the range control. It wraps when narrow; do not add a third chip group.
 
 ### Add a component
 1. Check the tokens. Every value must come from `tokens.css`. If one is missing, add it first (see the last recipe).
@@ -458,6 +465,7 @@ Each recipe ends with: run `node --test "tests/*.test.mjs"` (must pass), then lo
 2. If its value is raw, add the dark value to **both** dark blocks, identically. If it is derived only from other tokens, it follows the theme and needs no dark entry.
 3. Check contrast: text and semantic colours must meet WCAG AA (4.5:1) on `--color-bg`, `--color-bg-2`, `--color-bg-grouped` and on their own `*-soft`, in both themes.
 4. Add it to the token index above, and show it in the gallery if it is a new role.
+   The Windows title bar copies two tokens by value: `ApplyTheme` in `MainForm.cs` sets the caption and border to `--color-bg-grouped` and the title text to `--color-label` (Windows 11). If you change either token, change those constants too.
 5. Verify (tests, then light and dark).
 
 ## 9. Where things live (`src/Tokenscope/ui/`)
@@ -512,7 +520,7 @@ stackedBars(el, {labels /*ISO days*/, series:[{name, color, values}], format, he
 lineChart(el, {labels /*ISO days*/, values, format, height, color, tipLabel(iso, i)})
 sparkline(el, values, {color})
 rankBars(el, [{label, value, share, color, badge}], {format})     // HTML; more than 8 items fold into "Other"
-heatmap(el, cells /*from heatmapCells()*/, {format, today})
+heatmap(el, cells /*from heatmapCells()*/, {format, today, legend = true})   // legend: false drops the Less/More scale (small cards)
 blockTimeline(el, blocks, nowMs, {hours, format})
 
 // bridge.js (app.js only; never from views)

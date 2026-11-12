@@ -4,7 +4,7 @@ Windows desktop dashboard that shows AI coding-agent token usage and cost (Claud
 
 ## Layout
 - `src/Tokenscope/ui/`: the UI. ES modules, no build step, no dependencies. Design system in `ui/design/` (`tokens.css`, `components.css`, `gallery.html`).
-- `src/Tokenscope/`: the host (`Program.cs` entry and `--selfcheck`, `Engine.cs` arg policy and engine runner, `MainForm.cs` window, WebView2, bridge, tray).
+- `src/Tokenscope/`: the host (`Program.cs` entry and `--selfcheck`, `Engine.cs` arg policy and engine runner, `MainForm.cs` window, title bar colours, WebView2, bridge, tray; `Sync.cs` machine sync through a shared folder).
 - `engine/`: pinned official `ccusage.exe` v20.0.50, fetched by `node scripts/fetch-engine.mjs` (the exe is gitignored).
 - `tests/`: Node tests and `tests/fixtures/*.json`.
 - `docs/superpowers/`: spec and implementation plan. `docs/DESIGN.md`: design guide.
