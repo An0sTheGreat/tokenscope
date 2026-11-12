@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tokenscope</title>
+  <link rel="stylesheet" href="design/tokens.css">
+  <link rel="stylesheet" href="design/components.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="ts-app">
+    <nav class="ts-sidebar" aria-label="Screens">
+      <h2 class="ts-sidebar-title">Tokenscope</h2>
+      <div class="ts-nav" id="nav" style="--index: 0"><span class="ts-nav-pill"></span></div>
+    </nav>
+    <div class="ts-app-pane">
+      <div class="ts-app-main" id="main">
+        <header class="ts-topbar">
+          <h2 class="ts-topbar-title" id="bar-title">Overview</h2>
+          <div class="ts-topbar-actions" id="bar-actions"></div>
+        </header>
+        <main class="ts-app-content" id="content"></main>
+      </div>
+      <div class="ts-sheet" inert></div>
+    </div>
+  </div>
+</body>
+</html>

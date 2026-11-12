@@ -1,0 +1,881 @@
+/* Tokenscope components — tokens only (no raw colours/sizes/durations; see tokens.css).
+   Conventions:
+   - Class prefix ts-; child parts are ts-<component>-<part>; modifiers are ts-<component>--<name>.
+   - State comes from native attributes: :checked, :disabled, aria-current, aria-pressed,
+     aria-sort, aria-expanded, aria-invalid, data-open, data-active. No is-* classes.
+   - Only transform/translate/scale/rotate, opacity and filter animate. Colour changes on hover
+     or press are an overlay pseudo-element whose opacity animates.
+   - Component-private custom properties start with --_ ; public knobs (--tile, --dot,
+     --series, --value, --i) are documented on the component that reads them.
+   - Every class here must appear in gallery.html (tests/design.test.mjs). */
+
+/* ── Base ────────────────────────────────────────────────────────────────────
+   Page defaults every screen inherits: font, colours, tabular figures, focus ring, scrollbars. */
+html {
+  font: var(--text-body);
+  color: var(--color-label);
+  background: var(--color-bg-grouped);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-fill) transparent;
+}
+body { margin: 0; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--color-fill) transparent; }
+:focus-visible { outline: var(--size-focus) solid var(--color-focus); outline-offset: var(--size-focus-offset); }
+:focus:not(:focus-visible) { outline: none; }
+svg { flex: none; }
+
+/* ── Entrance (ts-enter) ─────────────────────────────────────────────────────
+   Purpose: fade + rise when an element is inserted (cards, rows, list items).
+   Knob: --i = index for the stagger (set inline, e.g. style="--i: 3"); capped at 12 rows.
+   Runs on insertion via @starting-style; no JS needed. */
+.ts-enter {
+  --i: 0;
+  transition: opacity var(--spring-smooth), translate var(--spring-smooth);
+  transition-delay: calc(min(var(--i), 12) * var(--stagger-step));
+  @starting-style { opacity: 0; translate: 0 var(--rise); }
+}
+
+/* ── App shell (ts-app) ──────────────────────────────────────────────────────
+   Purpose: the window layout: a fixed-width translucent sidebar beside the content pane. Fills
+   the viewport (100dvh) and works from 960×640 up. The window never scrolls; only the pane's
+   main area does (overscroll contained), with the top bar sticky inside it.
+   Anatomy: body > .ts-app > nav.ts-sidebar
+              + .ts-app-pane (non-scrolling, position: relative; hosts .ts-sheet)
+                > .ts-app-main (the scroll container; inline-size container for .ts-grid)
+                  > header.ts-topbar + .ts-app-content (> h1.ts-large-title + cards / .ts-grid*)
+                + .ts-sheet? */
+body:has(> .ts-app) { overflow: hidden; }
+.ts-app {
+  position: relative;
+  display: flex;
+  block-size: 100dvh;
+  overflow: clip;
+  background: var(--color-bg-grouped);
+  & > .ts-sidebar { flex: none; overflow: auto; overscroll-behavior: contain; }
+}
+.ts-app-pane { position: relative; flex: 1; min-inline-size: 0; overflow: clip; }
+.ts-app-main { block-size: 100%; overflow: auto; overscroll-behavior: contain; container-type: inline-size; }
+.ts-app-content { display: grid; gap: var(--space-4); padding: 0 var(--space-7) var(--space-7); }
+.ts-app-content > .ts-large-title { margin-block-end: calc(-1 * var(--space-2)); }
+
+/* ── Stack ───────────────────────────────────────────────────────────────────
+   Purpose: vertical run of cards/sections with the standard gap. app.js gives every view a
+            .ts-stack to render into; also used inside sheets.
+   Anatomy: div.ts-stack > (cards, .ts-grid rows, .ts-toolbar, lists)* */
+.ts-stack { display: grid; gap: var(--space-4); min-inline-size: 0; }
+.ts-stack > * { min-inline-size: 0; }
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────────
+   Purpose: one row of controls above content: the source/range filter row under the large
+            title, a view's own switches (Daily/Weekly/Monthly), a search field with a count.
+   Anatomy: div.ts-toolbar > div.ts-toolbar-group (leading) + div.ts-toolbar-group? (trailing)
+            A group is also usable alone as an inline cluster of buttons.
+   Behaviour: groups sit at opposite ends and wrap onto a second line when the pane is narrow. */
+.ts-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.ts-toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-inline-size: 0; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────────
+   Purpose: app navigation, a translucent material column on the left.
+   Anatomy: .ts-sidebar > .ts-sidebar-title + .ts-nav > .ts-nav-pill + .ts-nav-item* */
+.ts-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  inline-size: var(--size-sidebar);
+  padding: var(--space-6) var(--space-3);
+  background: var(--color-material-thick);
+  backdrop-filter: var(--blur-sidebar);
+}
+.ts-sidebar-title { margin: 0; padding-inline: var(--space-3); font: var(--text-title-3); letter-spacing: var(--tracking-snug); }
+
+/* ── Nav item ────────────────────────────────────────────────────────────────
+   Purpose: one screen link in the sidebar. The selection is a single pill (.ts-nav-pill, first
+   child of .ts-nav) that slides to the selected item.
+   Contract: script sets --index (0-based position of the aria-current="page" item) on .ts-nav,
+   in markup and whenever the selection changes: <nav class="ts-nav" style="--index: 2">.
+   (A pure-CSS :has() index proved unreliable: Chromium left the pill at stale positions.)
+   Anatomy: a.ts-nav-item > .ts-nav-icon (knob --tile: a --cat-* or --color-* token) > svg
+            + .ts-nav-label
+   States: hover, :active (press), aria-current="page" (selected). */
+.ts-nav { --index: 0; display: grid; grid-auto-rows: var(--size-row); position: relative; }
+.ts-nav-pill {
+  position: absolute; inset: 0; grid-area: 1 / 1 / 2 / 2; /* explicit end lines: "auto" would mean the container edge for an abs-pos grid child */
+  border-radius: var(--radius-md);
+  background: var(--color-fill);
+  translate: 0 calc(var(--index) * 100%);
+  transition: translate var(--spring-snappy), opacity var(--dur-fast) ease-out;
+  pointer-events: none;
+}
+.ts-nav:not(:has(> [aria-current="page"])) > .ts-nav-pill { opacity: 0; }
+.ts-nav-item {
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--color-label);
+  font: var(--text-body);
+  text-decoration: none;
+  cursor: default;
+  transition: scale var(--spring-snappy);
+  &::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--color-hover); opacity: 0; transition: opacity var(--dur-fast) ease-out;
+  }
+  &:hover::before { opacity: 1; }
+  &[aria-current="page"]::before { opacity: 0; }
+  &[aria-current="page"] { font: var(--text-headline); }
+  &:active { scale: var(--press-scale); }
+}
+.ts-nav-icon {
+  --tile: var(--color-tint-fill);
+  display: grid;
+  place-items: center;
+  inline-size: var(--size-tile);
+  block-size: var(--size-tile);
+  border-radius: var(--radius-sm);
+  background: var(--tile);
+  color: var(--color-on-accent);
+  & svg { inline-size: var(--size-icon); block-size: var(--size-icon); }
+}
+.ts-nav-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Top bar ─────────────────────────────────────────────────────────────────
+   Purpose: sticky compact bar at the top of the scrolling content pane. Its material
+   background, hairline and compact title fade in as the large title scrolls away
+   (scroll-driven animation; no JS).
+   Anatomy: header.ts-topbar > .ts-topbar-title + .ts-topbar-actions (buttons, chips, segmented) */
+.ts-topbar {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-bar);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-block-size: var(--size-topbar);
+  padding-inline: var(--space-7);
+  &::before {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background: var(--color-material);
+    backdrop-filter: var(--blur-bar);
+    box-shadow: 0 var(--hairline) 0 var(--color-separator);
+    opacity: 0; /* base state when the pane cannot scroll (inactive scroll timeline) */
+    animation: ts-fade-in linear both;
+    animation-timeline: scroll(nearest block);
+    animation-range: 0 var(--space-8);
+  }
+}
+.ts-topbar-title {
+  flex: 1;
+  margin: 0;
+  font: var(--text-headline);
+  opacity: 0; /* hidden until the large title scrolls away; stays hidden on a page too short to scroll */
+  animation: ts-fade-in linear both;
+  animation-timeline: scroll(nearest block);
+  animation-range: var(--space-7) calc(var(--space-7) + var(--space-8));
+}
+.ts-topbar-actions { display: flex; align-items: center; gap: var(--space-2); }
+@keyframes ts-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ts-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* ── Large title ─────────────────────────────────────────────────────────────
+   Purpose: the screen's title at the top of its content; fades as it scrolls under the top bar.
+   Anatomy: h1.ts-large-title (optionally followed by a footnote subtitle in --color-label-2). */
+.ts-large-title {
+  margin: 0;
+  padding: var(--space-2) 0 var(--space-4);
+  font: var(--text-large-title);
+  letter-spacing: var(--tracking-tight);
+  transform-origin: left bottom;
+  animation: ts-fade-out linear both;
+  animation-timeline: scroll(nearest block);
+  animation-range: 0 var(--space-8);
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────────
+   Purpose: the inset grouped container all content sits in. No border; soft shadow (light),
+   lighter surface (dark). Use <a>/<button class="ts-card"> for a pressable card.
+   Anatomy: .ts-card > .ts-card-header > .ts-card-title + optional .ts-button--plain ("See all") */
+.ts-card {
+  position: relative;
+  display: block;
+  padding: var(--space-5);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-card);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+}
+:is(a, button).ts-card {
+  cursor: default;
+  transition: scale var(--spring-snappy);
+  &::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--color-hover); opacity: 0; transition: opacity var(--dur-fast) ease-out;
+  }
+  &:hover::after { opacity: 1; }
+  &:active { scale: var(--press-scale); }
+}
+.ts-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-end: var(--space-3);
+}
+.ts-card-title { margin: 0; font: var(--text-subhead); font-weight: 600; color: var(--color-label-2); }
+
+/* ── Grid (ts-grid) ──────────────────────────────────────────────────────────
+   Purpose: responsive card grid inside .ts-app-content or a sheet body.
+   Default: as many columns of at least 280 px as fit.
+   Modifiers: --stats (4-up stat row, 2-up when narrow), --split (2:1 row, stacks when narrow).
+   Narrow = the nearest inline-size container (.ts-app-main, .ts-sheet-body) is under 880 px
+   (--size-pane-narrow; a @container condition cannot read var(), so the value is repeated here). */
+.ts-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(7 * var(--space-8))), 1fr));
+  align-items: start;
+}
+.ts-grid--stats { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; }
+.ts-grid--split { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+@container (inline-size < 880px) {
+  .ts-grid--stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ts-grid--split { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── List ────────────────────────────────────────────────────────────────────
+   Purpose: an inset grouped list (Settings sections, recent sessions). On the grouped
+   background it is its own rounded surface; inside a .ts-card it bleeds to the card edges.
+   Anatomy: .ts-list-header? + ul.ts-list > .ts-row* + .ts-list-footer? */
+.ts-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-card);
+  overflow: clip;
+}
+.ts-card > .ts-list { margin-inline: calc(-1 * var(--space-5)); border-radius: 0; background: none; box-shadow: none; }
+.ts-card > .ts-list:last-child { margin-block-end: calc(-1 * var(--space-2)); } /* last row's own 8 px padding + 12 px = the card's 20 px */
+.ts-list-header, .ts-list-footer { margin: 0; padding-inline: var(--space-4); font: var(--text-footnote); color: var(--color-label-2); }
+.ts-list-header { padding-block-end: var(--space-2); }
+.ts-list-footer { padding-block-start: var(--space-2); }
+
+/* ── Row ─────────────────────────────────────────────────────────────────────
+   Purpose: one list row, 44 px minimum. Hairline separator inset to the title, none on the last row.
+   Use <a>/<button class="ts-row"> (or <li><button class="ts-row">) for a pressable row.
+   Anatomy: .ts-row > .ts-row-leading? (a .ts-nav-icon tile or avatar)
+            + .ts-row-content > .ts-row-title + .ts-row-subtitle?
+            + .ts-row-trailing? (value or control) + svg.ts-row-chevron?
+   States: hover/press overlay (pressable only), aria-disabled="true". */
+.ts-row {
+  --_inset: var(--space-4);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--size-row);
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: var(--text-callout);
+  text-align: start;
+  text-decoration: none;
+  &::after {
+    content: ""; position: absolute; inset-inline: var(--_inset) 0; inset-block-end: 0;
+    block-size: var(--hairline); background: var(--color-separator);
+  }
+  &:has(> .ts-row-leading) { --_inset: calc(var(--space-4) + var(--size-tile) + var(--space-3)); }
+  &[aria-disabled="true"] { opacity: var(--opacity-disabled); pointer-events: none; }
+}
+.ts-list > .ts-row:last-child::after, .ts-list > li:last-child > .ts-row::after { display: none; }
+:is(a, button).ts-row {
+  cursor: default;
+  &::before {
+    content: ""; position: absolute; inset: 0;
+    background: var(--color-fill); opacity: 0; transition: opacity var(--dur-fast) ease-out;
+  }
+  &:hover::before { opacity: .5; }
+  &:active::before { opacity: 1; transition-duration: 0s; }
+}
+.ts-row-leading { display: grid; place-items: center; }
+.ts-row-content { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; }
+.ts-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-row-subtitle { font: var(--text-footnote); color: var(--color-label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-row-trailing { display: flex; align-items: center; gap: var(--space-2); color: var(--color-label-2); font: var(--text-callout); }
+.ts-row-chevron { inline-size: var(--size-icon); block-size: var(--size-icon); color: var(--color-label-3); margin-inline-end: calc(-1 * var(--space-1)); }
+
+/* ── Segmented control ───────────────────────────────────────────────────────
+   Purpose: pick one of 2–6 equal options (range presets, Daily/Weekly/Monthly, theme).
+   Built on radios, so arrow keys work. The thumb slides to --index.
+   Contract: script sets --index (0-based position of the checked radio) on .ts-segmented, in
+   markup and on every `change`: <div class="ts-segmented" style="--index: 1">.
+   Anatomy: div.ts-segmented[role=radiogroup] > span.ts-segmented-thumb (first child)
+            + label.ts-segmented-item* > input[type=radio] + span */
+.ts-segmented {
+  --index: 0;
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  min-block-size: var(--size-control);
+  padding: var(--size-switch-inset);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-2);
+  font: var(--text-footnote);
+}
+.ts-segmented-thumb {
+  position: absolute; inset: 0; grid-area: 1 / 1 / 2 / 2; /* explicit end lines: "auto" would mean the container edge for an abs-pos grid child */
+  border-radius: calc(var(--radius-md) - var(--size-switch-inset));
+  background: var(--color-thumb);
+  box-shadow: var(--shadow-popover);
+  translate: calc(var(--index) * 100%) 0;
+  transition: translate var(--spring-snappy), scale var(--spring-snappy);
+}
+.ts-segmented:has(.ts-segmented-item:active :checked) .ts-segmented-thumb { scale: var(--press-scale); }
+.ts-segmented:not(:has(:checked)) .ts-segmented-thumb { opacity: 0; }
+.ts-segmented-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding-inline: var(--space-3);
+  border-radius: calc(var(--radius-md) - var(--size-switch-inset));
+  color: var(--color-label);
+  white-space: nowrap;
+  cursor: default;
+  & input { position: absolute; opacity: 0; pointer-events: none; }
+  &:has(:checked) { font-weight: 600; }
+  &:has(:focus-visible) { outline: var(--size-focus) solid var(--color-focus); }
+  &:has(:disabled) { opacity: var(--opacity-disabled); }
+}
+
+/* ── Switch ──────────────────────────────────────────────────────────────────
+   Purpose: on/off setting. A native checkbox: <input type="checkbox" role="switch" class="ts-switch">.
+   Anatomy: ::before = green "on" layer (fades), ::after = thumb (slides, squashes while pressed).
+   States: :checked, :active, :disabled. */
+.ts-switch {
+  appearance: none;
+  position: relative;
+  flex: none;
+  inline-size: var(--size-switch-w);
+  block-size: var(--size-switch-h);
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+  cursor: default;
+  &::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--color-positive); opacity: 0; transition: opacity var(--dur-fast) ease-out;
+  }
+  &::after {
+    content: ""; position: absolute;
+    inset: var(--size-switch-inset);
+    inline-size: calc(var(--size-switch-h) - 2 * var(--size-switch-inset));
+    border-radius: var(--radius-pill);
+    background: var(--color-on-accent);
+    box-shadow: var(--shadow-popover);
+    transform-origin: left center;
+    transition: translate var(--spring-snappy), scale var(--spring-snappy);
+  }
+  &:checked::before { opacity: 1; }
+  &:checked::after { translate: calc(var(--size-switch-w) - var(--size-switch-h)) 0; transform-origin: right center; }
+  &:active::after { scale: 1.15 1; }
+  &:disabled { opacity: var(--opacity-disabled); }
+}
+
+/* ── Button ──────────────────────────────────────────────────────────────────
+   Purpose: actions. Filled (default, primary), --tinted (secondary), --plain (text-only, "See all").
+   Anatomy: button.ts-button > svg? + text
+   States: hover overlay, :active (scale + dim), :disabled. */
+.ts-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-block-size: var(--size-control);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-tint-fill);
+  color: var(--color-tint-fill-contrast);
+  font: var(--text-subhead);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: default;
+  transition: scale var(--spring-snappy), opacity var(--spring-snappy);
+  & svg { inline-size: var(--size-icon); block-size: var(--size-icon); }
+  &::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: var(--color-hover); opacity: 0; transition: opacity var(--dur-fast) ease-out;
+  }
+  &:hover::before { opacity: 1; }
+  &:active { scale: var(--press-scale); opacity: var(--opacity-pressed); transition-duration: 0s; }
+  &:disabled { opacity: var(--opacity-disabled); pointer-events: none; }
+}
+.ts-button--tinted { background: var(--color-tint-soft); color: var(--color-tint); }
+.ts-button--plain {
+  background: none;
+  color: var(--color-tint);
+  padding-inline: var(--space-2);
+  font-weight: 400;
+}
+
+/* ── Chip ────────────────────────────────────────────────────────────────────
+   Purpose: legend entries (static <span>) and filter toggles (<button aria-pressed>).
+   Anatomy: .ts-chip > .ts-chip-dot? (knob --dot: a --cat-* token) + text
+   States: aria-pressed="true" (selected: vivid tint fill fades in, white label), hover, :active. */
+.ts-chip {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: calc(var(--size-control) - var(--space-1));
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-fill-2);
+  color: var(--color-label);
+  font: var(--text-footnote);
+  white-space: nowrap;
+  &::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+    background: var(--color-tint-fill); opacity: 0; transition: opacity var(--dur-fast) ease-out;
+  }
+  &[aria-pressed="true"] { color: var(--color-tint-fill-contrast); font-weight: 600; }
+  &[aria-pressed="true"]::before { opacity: 1; }
+}
+button.ts-chip { cursor: default; transition: scale var(--spring-snappy); &:active { scale: var(--press-scale); } }
+.ts-chart-legend .ts-chip { background: none; padding-inline: 0; color: var(--color-label-2); }
+/* --dot (set inline on the dot) defaults to the tint wherever the dot is used: chip, tooltip row, legend */
+.ts-chip-dot { --dot: var(--color-tint); inline-size: var(--size-dot); block-size: var(--size-dot); border-radius: var(--radius-pill); background: var(--dot); }
+
+/* ── Badge ───────────────────────────────────────────────────────────────────
+   Purpose: tiny status pill: deltas (▲ 12%), "Unpriced", counts.
+   Modifiers: --positive, --negative, --warning, --tint (default is neutral). */
+.ts-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-fill-2);
+  color: var(--color-label-2);
+  font: var(--text-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ts-badge--positive { background: var(--color-positive-soft); color: var(--color-positive); }
+.ts-badge--negative { background: var(--color-negative-soft); color: var(--color-negative); }
+.ts-badge--warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.ts-badge--tint { background: var(--color-tint-soft); color: var(--color-tint); }
+
+/* ── Stat ────────────────────────────────────────────────────────────────────
+   Purpose: widget-like figure card. Use on a card: <article class="ts-card ts-stat">.
+   Anatomy: .ts-stat-label + .ts-stat-value (count-up target) + .ts-stat-meta (badge + text)
+            + svg.ts-stat-spark? (a .ts-chart-line inside) */
+.ts-stat { display: flex; flex-direction: column; gap: var(--space-1); }
+.ts-stat-label { font: var(--text-footnote); font-weight: 600; color: var(--color-label-2); }
+.ts-stat-value { font: var(--text-large-title); letter-spacing: var(--tracking-tight); }
+.ts-stat-meta { display: flex; align-items: center; gap: var(--space-2); font: var(--text-footnote); color: var(--color-label-2); }
+.ts-stat-spark { display: block; inline-size: 100%; block-size: var(--space-8); margin-block-start: var(--space-2); overflow: visible; }
+
+/* ── Table ───────────────────────────────────────────────────────────────────
+   Purpose: sortable data tables (Reports, Sessions, Blocks history). Put it in a .ts-card.
+   Anatomy: table.ts-table > thead th[aria-sort]? > button.ts-table-sort > text + svg.ts-table-caret
+            tbody tr.ts-table-row[aria-expanded]? > td (first cell may hold svg.ts-table-caret)
+            tr.ts-table-detail[hidden]? > td[colspan] > .ts-table-detail-body
+            tfoot (totals). Numeric cells: class ts-table-num (right-aligned).
+            Long text column: class ts-table-clip on its th and every td. It takes the leftover
+            width and truncates with an ellipsis, so the table never outgrows its card.
+   States: aria-sort="ascending|descending", aria-expanded="true", row hover. */
+.ts-table {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: var(--text-subhead);
+  & th, & td { padding: var(--space-2) var(--space-3); text-align: start; white-space: nowrap; }
+  & th:first-child, & td:first-child { padding-inline-start: 0; }
+  & th:last-child, & td:last-child { padding-inline-end: 0; }
+  & thead th {
+    position: sticky; inset-block-start: var(--size-topbar); z-index: 1;
+    background: var(--color-bg);
+    font: var(--text-footnote); font-weight: 600; color: var(--color-label-2);
+    box-shadow: inset 0 calc(-1 * var(--hairline)) 0 var(--color-separator);
+  }
+  & tbody td { box-shadow: inset 0 calc(-1 * var(--hairline)) 0 var(--color-separator); }
+  & tbody tr:last-child td { box-shadow: none; }
+  & tfoot td { font-weight: 600; box-shadow: inset 0 var(--hairline) 0 var(--color-separator); }
+}
+.ts-table .ts-table-num { text-align: end; }
+.ts-table .ts-table-clip { inline-size: 40%; max-inline-size: 0; overflow: hidden; text-overflow: ellipsis; }
+.ts-table-clip :is(.ts-row-title, .ts-row-subtitle) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-table-sort {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: default;
+  .ts-table-num & { flex-direction: row-reverse; }
+}
+.ts-table-caret {
+  inline-size: var(--space-3); block-size: var(--space-3);
+  opacity: 0;
+  transition: rotate var(--spring-snappy), opacity var(--dur-fast) ease-out;
+  .ts-table-sort:hover & { opacity: .5; }
+  [aria-sort] & { opacity: 1; color: var(--color-tint); }
+  [aria-sort="ascending"] & { rotate: 180deg; }
+}
+.ts-table-row {
+  &:hover td { background: var(--color-fill-2); }
+  &[aria-expanded] { cursor: default; }
+  &[aria-expanded] .ts-table-caret { opacity: 1; color: var(--color-label-3); rotate: -90deg; margin-inline-end: var(--space-1); }
+  &[aria-expanded="true"] .ts-table-caret { rotate: 0deg; }
+  &[aria-expanded="true"] td { box-shadow: none; }
+}
+.ts-table-detail > td { padding-block: 0 var(--space-3); }
+.ts-table-detail-body {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-2);
+  font: var(--text-footnote);
+  transition: opacity var(--spring-smooth), translate var(--spring-smooth);
+  @starting-style { opacity: 0; translate: 0 calc(-1 * var(--space-2)); }
+}
+
+/* ── Sheet ───────────────────────────────────────────────────────────────────
+   Purpose: detail and picker panels that slide up from the bottom of the content pane over a
+   dimmed, blurred backdrop. Place inside the content pane's non-scrolling wrapper
+   (position: relative). Open with data-open; when closed also set inert. Dismiss on backdrop
+   click and Escape (dom.js wires this).
+   Anatomy: .ts-sheet[data-open]? > .ts-sheet-backdrop
+            + section.ts-sheet-panel[role=dialog] > .ts-sheet-grabber + .ts-sheet-header
+              (> .ts-sheet-title + .ts-button--plain "Done") + .ts-sheet-body */
+.ts-sheet {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  overflow: clip;
+  pointer-events: none;
+  &[data-open] { pointer-events: auto; }
+}
+.ts-sheet-backdrop {
+  grid-area: 1 / 1;
+  align-self: stretch;
+  justify-self: stretch;
+  background: var(--color-scrim);
+  backdrop-filter: var(--blur-sheet);
+  opacity: 0;
+  transition: opacity var(--spring-smooth);
+  [data-open] > & { opacity: 1; }
+}
+.ts-sheet-panel {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  inline-size: min(100%, var(--size-sheet-max));
+  max-block-size: var(--size-sheet-height);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-bg-sheet);
+  --color-bg: var(--color-bg-2); /* cards and lists inside a sheet step up one level, never down */
+  box-shadow: var(--shadow-sheet);
+  translate: 0 100%;
+  transition: translate var(--spring-smooth);
+  [data-open] > & { translate: 0 0; }
+}
+.ts-sheet-grabber {
+  align-self: center;
+  inline-size: var(--size-grabber-w);
+  block-size: var(--size-grabber-h);
+  margin-block-start: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+}
+.ts-sheet-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-5) var(--space-3); }
+.ts-sheet-title { margin: 0; font: var(--text-title-3); letter-spacing: var(--tracking-snug); }
+.ts-sheet-body { overflow: auto; overscroll-behavior: contain; container-type: inline-size; padding: 0 var(--space-5) var(--space-6); }
+
+/* ── Tooltip ─────────────────────────────────────────────────────────────────
+   Purpose: chart hover readout. JS positions it with style.translate ("120px 40px") and sets
+   data-open; it fades and scales in from 0.96 and glides between positions.
+   Anatomy: .ts-tooltip[role=tooltip] > .ts-tooltip-title + .ts-tooltip-row* (> .ts-chip-dot + text + .ts-tooltip-value) */
+.ts-tooltip {
+  position: absolute;
+  inset: 0 auto auto 0;
+  z-index: var(--z-tooltip);
+  display: grid;
+  gap: var(--space-1);
+  max-inline-size: var(--size-tooltip-max);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-material);
+  backdrop-filter: var(--blur-bar);
+  box-shadow: var(--shadow-popover);
+  font: var(--text-footnote);
+  pointer-events: none;
+  opacity: 0;
+  scale: .96;
+  transform-origin: center bottom;
+  transition: opacity var(--dur-base) ease-out, scale var(--spring-snappy), translate var(--spring-snappy);
+  &[data-open] { opacity: 1; scale: 1; }
+}
+.ts-tooltip-title { font-weight: 600; }
+.ts-tooltip-row { display: flex; align-items: center; gap: var(--space-2); color: var(--color-label-2); }
+.ts-tooltip-value { margin-inline-start: auto; padding-inline-start: var(--space-4); color: var(--color-label); font-weight: 600; }
+
+/* ── Progress ────────────────────────────────────────────────────────────────
+   Purpose: share or limit bars (block tokens vs limit, model share).
+   Knob: --value = 0…1 (set inline: style="--value: .62"; values above 1 show full).
+   Anatomy: .ts-progress-label? (> span what + strong figure) directly above
+            .ts-progress[role=progressbar] > .ts-progress-fill
+   Modifiers: --warning (nearing limit), --over (over limit). */
+.ts-progress {
+  --value: 0;
+  --_fill: var(--color-tint);
+  display: block;
+  block-size: var(--size-progress);
+  border-radius: var(--radius-pill);
+  background: var(--color-fill);
+  overflow: clip;
+}
+.ts-progress-label {
+  display: flex; justify-content: space-between; gap: var(--space-3);
+  margin-block: var(--space-3) var(--space-2);
+  font: var(--text-footnote); color: var(--color-label-2);
+  & strong { font-weight: 600; color: var(--color-label); }
+}
+.ts-progress--warning { --_fill: var(--color-warning); }
+.ts-progress--over { --_fill: var(--color-negative); }
+.ts-progress-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--_fill);
+  translate: calc((min(var(--value), 1) - 1) * 100%) 0;
+  transition: translate var(--spring-smooth);
+  @starting-style { translate: -100% 0; }
+}
+
+/* ── Skeleton ────────────────────────────────────────────────────────────────
+   Purpose: loading placeholder in the final layout (never a blank window).
+   Default is a text line; set width inline (style="width: 60%").
+   Modifiers: --title (large figure line), --block (chart / card body). */
+.ts-skeleton {
+  position: relative;
+  display: block;
+  block-size: 1em;
+  margin-block: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-fill-2);
+  overflow: clip;
+  &::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, var(--color-shimmer), transparent);
+    translate: -100% 0;
+    animation: ts-shimmer var(--dur-slow) ease-in-out infinite;
+  }
+}
+.ts-skeleton--title { block-size: var(--space-7); inline-size: 50%; }
+.ts-skeleton--block { block-size: calc(4 * var(--space-8)); border-radius: var(--radius-md); }
+@keyframes ts-shimmer { to { translate: 100% 0; } }
+
+/* ── Empty state ─────────────────────────────────────────────────────────────
+   Purpose: nothing to show (no data at all, filter matches nothing, no active block).
+   Anatomy: .ts-empty > .ts-empty-glyph (svg) + .ts-empty-title + .ts-empty-text + .ts-button? */
+.ts-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+.ts-empty-glyph {
+  display: grid; place-items: center;
+  inline-size: calc(2 * var(--space-7)); block-size: calc(2 * var(--space-7));
+  margin-block-end: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-fill-2);
+  color: var(--color-label-2);
+  & svg { inline-size: var(--space-7); block-size: var(--space-7); }
+}
+.ts-empty-title { margin: 0; font: var(--text-title-3); letter-spacing: var(--tracking-snug); }
+.ts-empty-text { margin: 0 0 var(--space-2); max-inline-size: 40ch; font: var(--text-subhead); color: var(--color-label-2); }
+
+/* ── Banner ──────────────────────────────────────────────────────────────────
+   Purpose: page-level message above content (engine error with Retry, notices).
+   Anatomy: .ts-banner[role=alert|status] > svg.ts-banner-icon + .ts-banner-content
+            (> .ts-banner-title + .ts-banner-text + pre.ts-banner-detail?) + .ts-button?
+   Modifiers: default is informational (tint); --warning, --negative. */
+.ts-banner {
+  --_accent: var(--color-tint);
+  --_soft: var(--color-tint-soft);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: linear-gradient(var(--_soft), var(--_soft)), var(--color-bg);
+  box-shadow: var(--shadow-card);
+}
+.ts-banner--warning { --_accent: var(--color-warning); --_soft: var(--color-warning-soft); }
+.ts-banner--negative { --_accent: var(--color-negative); --_soft: var(--color-negative-soft); }
+.ts-banner-icon { inline-size: var(--size-icon); block-size: calc(1lh); color: var(--_accent); }
+.ts-banner-content { flex: 1; min-inline-size: 0; display: grid; gap: var(--space-1); font: var(--text-subhead); }
+.ts-banner-title { font-weight: 600; color: var(--_accent); }
+.ts-banner-text { margin: 0; color: var(--color-label); }
+.ts-banner-detail {
+  margin: 0; max-block-size: var(--size-banner-detail); overflow: auto;
+  font: var(--text-caption); font-family: var(--font-mono); color: var(--color-label-2);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* ── Field ───────────────────────────────────────────────────────────────────
+   Purpose: text input or select (search, timezone, token limit, refresh interval).
+   Anatomy: .ts-field > svg.ts-field-icon? + (input|select).ts-field-input
+            followed by p.ts-field-message (shown only while the input has aria-invalid="true")
+   Modifier: --search (leading magnifier, pill shape).
+   States: :focus-within (ring), aria-invalid="true" (red ring + message), :disabled. */
+.ts-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-block-size: var(--size-control);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-fill-2);
+  color: var(--color-label-2);
+  &:focus-within { outline: var(--size-focus) solid var(--color-focus); }
+  &:has([aria-invalid="true"]) { box-shadow: inset 0 0 0 var(--hairline) var(--color-negative); }
+  &:has(:disabled) { opacity: var(--opacity-disabled); }
+}
+.ts-field--search { border-radius: var(--radius-pill); }
+.ts-field-icon { inline-size: var(--size-icon); block-size: var(--size-icon); }
+.ts-field-input {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: var(--size-control);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-label);
+  font: var(--text-callout);
+  outline: none;
+  &::placeholder { color: var(--color-label-3); }
+}
+select.ts-field-input { appearance: none; cursor: default; & option { background: var(--color-bg-2); color: var(--color-label); } }
+.ts-field-message { display: none; margin: var(--space-1) 0 0; padding-inline: var(--space-3); font: var(--text-footnote); color: var(--color-negative); }
+.ts-field:has([aria-invalid="true"]) + .ts-field-message { display: block; }
+
+/* ── Chart primitives ────────────────────────────────────────────────────────
+   Purpose: styles for hand-drawn SVG charts (charts.js draws the geometry).
+   Contract: charts are drawn in CSS pixels. The svg's viewBox is the container's content width x
+             the chart height and charts.js redraws on width change (one ResizeObserver per
+             container), so labels read at their real 12 px and strokes stay crisp. Redraws after a
+             resize never carry the entrance classes, and hover only toggles attributes, so an
+             entrance plays once per data set.
+   Knob: --series = the colour of a mark (set on the mark or a <g>: style="--series: var(--cat-1)").
+   Anatomy: svg.ts-chart > line.ts-chart-grid* + line.ts-chart-axis + text.ts-chart-label*
+            + g.ts-chart-grow > (rect|path).ts-chart-bar* (stacked: 2 px gaps; only the top segment
+              is rounded, drawn as a path with square bottom corners)
+            | path.ts-chart-area + path.ts-chart-line
+            | rect.ts-chart-cell[data-level=0…4] (heatmap) + .ts-chart-scale (Less … More)
+            + rect.ts-chart-hit* (transparent column hit areas; focus ring when tabbed)
+            + line.ts-chart-hover (vertical cursor) + circle.ts-chart-dot (hover point): shown while
+              svg[data-hover]; JS moves them with translate, which glides
+            timeline: rect.ts-timeline-track (block span) under rect.ts-chart-bar (used part) + line.ts-timeline-now
+            legend: .ts-chart-legend > span.ts-chip > .ts-chip-dot
+   States: :hover or [data-active] on a mark dims its siblings.
+   Entrances: .ts-chart-grow (bars rise from the baseline; --x variant grows from the left),
+              .ts-chart-trace (on the <rect> of a clipPath: slides from -100% to reveal a line),
+              .ts-chart-fade (areas, heatmap). Grow and trace stagger by --i. */
+.ts-chart {
+  --series: var(--color-tint);
+  display: block;
+  inline-size: 100%;
+  overflow: visible;
+  font: var(--text-caption);
+  user-select: none;
+}
+.ts-chart-grid { stroke: var(--color-separator); stroke-width: var(--hairline); stroke-dasharray: 2 3; shape-rendering: crispEdges; }
+.ts-chart-axis { stroke: var(--color-separator); stroke-width: var(--hairline); shape-rendering: crispEdges; }
+.ts-chart-label { fill: var(--color-label-2); font: var(--text-caption); }
+.ts-chart-bar, .ts-chart-cell { fill: var(--series); transition: opacity var(--dur-fast) ease-out; }
+.ts-chart-line { fill: none; stroke: var(--series); stroke-width: var(--size-line); stroke-linecap: round; stroke-linejoin: round; }
+.ts-chart-area { fill: var(--series); fill-opacity: var(--opacity-area); stroke: none; }
+.ts-chart-cell[data-level="0"] { fill: var(--heat-0); }
+.ts-chart-cell[data-level="1"] { fill: var(--heat-1); }
+.ts-chart-cell[data-level="2"] { fill: var(--heat-2); }
+.ts-chart-cell[data-level="3"] { fill: var(--heat-3); }
+.ts-chart-cell[data-level="4"] { fill: var(--heat-4); }
+.ts-chart:has(:is(.ts-chart-bar, .ts-chart-cell):is(:hover, [data-active])) :is(.ts-chart-bar, .ts-chart-cell):not(:hover, [data-active]) { opacity: var(--opacity-dimmed); }
+.ts-chart-hit { fill: none; stroke: var(--color-focus); stroke-width: var(--size-line); stroke-opacity: 0; pointer-events: all; outline: none; &:focus-visible { stroke-opacity: 1; } }
+.ts-chart-hover { stroke: var(--color-label-3); stroke-width: var(--hairline); pointer-events: none; }
+.ts-chart-dot { fill: var(--series); stroke: var(--color-bg); stroke-width: var(--size-line); pointer-events: none; }
+.ts-chart-hover, .ts-chart-dot { opacity: 0; transition: opacity var(--dur-fast) ease-out; }
+.ts-chart[data-hover] :is(.ts-chart-hover, .ts-chart-dot) { opacity: 1; transition: opacity var(--dur-fast) ease-out, translate var(--spring-snappy); }
+.ts-chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-block-start: var(--space-3); }
+.ts-chart-scale { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); margin-block-start: var(--space-3); font: var(--text-caption); color: var(--color-label-2); }
+.ts-timeline-track { fill: var(--color-fill); }
+.ts-timeline-now { stroke: var(--color-tint); stroke-width: var(--size-line); stroke-linecap: round; pointer-events: none; }
+.ts-chart-grow {
+  --i: 0;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ts-grow-y var(--spring-smooth) both;
+  animation-delay: calc(min(var(--i), 12) * var(--stagger-step));
+}
+.ts-chart-grow--x { transform-origin: 0% 50%; animation-name: ts-grow-x; }
+.ts-chart-trace {
+  --i: 0;
+  transform-box: fill-box;
+  animation: ts-trace var(--spring-smooth) both;
+  animation-delay: calc(min(var(--i), 12) * var(--stagger-step));
+}
+.ts-chart-fade { animation: ts-fade-in var(--spring-smooth) both; }
+@keyframes ts-grow-y { from { scale: 1 0; } }
+@keyframes ts-grow-x { from { scale: 0 1; } }
+@keyframes ts-trace { from { translate: -100% 0; } }
+
+/* ── Rank bars ───────────────────────────────────────────────────────────────
+   Purpose: a ranked share list (rankBars in charts.js), HTML rather than SVG.
+   Knobs: --series on a row = its bar colour; --i = stagger index of the bar's grow-in.
+   Anatomy: .ts-rank > .ts-rank-row* > .ts-rank-head (> .ts-chip-dot + .ts-rank-label + .ts-badge?
+            + .ts-rank-value + .ts-rank-share) + .ts-progress > .ts-progress-fill */
+.ts-rank { display: grid; gap: var(--space-4); }
+.ts-rank-head { display: flex; align-items: center; gap: var(--space-2); margin-block-end: var(--space-2); font: var(--text-footnote); }
+.ts-rank-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ts-rank-value { margin-inline-start: auto; font-weight: 600; }
+.ts-rank-share { min-inline-size: var(--space-8); text-align: end; color: var(--color-label-2); }
+.ts-rank .ts-progress { --_fill: var(--series); block-size: var(--space-1); }
+.ts-rank .ts-progress-fill { transition-delay: calc(min(var(--i), 12) * var(--stagger-step)); }
+
+/* ── Reduced motion ──────────────────────────────────────────────────────────
+   Everything collapses to a 120 ms opacity fade: no travel, no scale, no shimmer, no springs. */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    transition-property: opacity !important;
+    transition-duration: var(--dur-fast) !important;
+    transition-timing-function: ease-out !important;
+    transition-delay: 0s !important;
+    animation-duration: var(--dur-fast) !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+  }
+  .ts-skeleton::after { animation: none; opacity: 0; }
+  .ts-chart-grow, .ts-chart-trace, .ts-chart-fade { animation-name: ts-fade-in !important; }
+  :active, :active::after, .ts-segmented-thumb { scale: none !important; }
+}

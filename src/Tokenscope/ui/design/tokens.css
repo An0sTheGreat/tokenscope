@@ -1,0 +1,231 @@
+/* Tokenscope design tokens — the ONLY file that holds raw colours, sizes, radii, shadows,
+   durations and easings. Everything else uses var(--token). Read docs/DESIGN.md first.
+   Light values live on :root; dark values are repeated, identically, in the two dark blocks at
+   the bottom (system dark unless data-theme="light", and forced data-theme="dark").
+   Contrast: every label and semantic colour meets WCAG AA (4.5:1) on --color-bg, --color-bg-2,
+   --color-bg-grouped and on its own *-soft background. Never put coloured text on a fill well. */
+
+:root {
+  color-scheme: light;
+
+  /* ── Text colours ─────────────────────────────────────────────────────────── */
+  --color-label: #000000;                    /* primary text, figures, titles */
+  --color-label-2: rgb(60 60 67 / .8);       /* secondary text: subtitles, card titles, axis labels */
+  --color-label-3: rgb(60 60 67 / .6);       /* tertiary text, AA-large only (>= 3:1): placeholders, chevrons, disabled hints — never for information the user needs */
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────────── */
+  --color-bg-grouped: #F2F2F7;               /* page background behind cards and grouped lists */
+  --color-bg: #FFFFFF;                       /* card / list / table surface on the grouped background */
+  --color-bg-2: #FFFFFF;                     /* raised surface above a card: popover, tooltip; cards inside a sheet */
+  --color-bg-sheet: #F2F2F7;                 /* sheet panel background; surfaces inside a sheet step UP from it (the panel remaps --color-bg to --color-bg-2) */
+  --color-thumb: #FFFFFF;                    /* sliding thumb of the segmented control: must stand clear of the --color-fill-2 track */
+  --color-fill: rgb(120 120 128 / .2);       /* recessed wells: switch off, progress track, pressed rows, nav selection pill */
+  --color-fill-2: rgb(120 120 128 / .12);    /* lighter well: segmented track, fields, neutral chips and badges, skeletons */
+  --color-separator: rgb(60 60 67 / .18);    /* hairlines between rows, chart grid lines */
+  --color-hover: rgb(0 0 0 / .05);           /* hover overlay on any surface or filled control */
+  --color-material: rgb(249 249 251 / .78);  /* translucent bar behind backdrop blur (top bar, tooltip) */
+  --color-material-thick: rgb(242 242 247 / .72); /* translucent sidebar behind heavier blur */
+  --color-scrim: rgb(0 0 0 / .28);           /* dimmed backdrop behind a sheet */
+  --color-shimmer: rgb(255 255 255 / .7);    /* moving highlight inside skeletons */
+  --color-on-accent: #FFFFFF;                /* glyphs on coloured icon tiles; switch thumb */
+
+  /* ── Accent and status ────────────────────────────────────────────────────── */
+  --color-tint: #005FCC;                     /* the one accent: links, plain/tinted buttons, selection, focus */
+  --color-tint-contrast: #FFFFFF;            /* text/icons on a solid --color-tint area (rare; filled controls use the pair below) */
+  --color-tint-fill: #006EE6;                /* vivid blue behind filled controls: primary button, selected chip, default icon tile */
+  --color-tint-fill-contrast: #FFFFFF;       /* label/glyph on --color-tint-fill (AA 4.8:1 in both themes) */
+  --color-positive: #1A7333;                 /* good news: cost down, switch on, healthy progress */
+  --color-negative: #BA0E1C;                 /* bad news: cost up, errors, over the limit */
+  --color-warning: #A34700;                  /* caution: unpriced models, nearing a limit */
+
+  /* ── Agent palette (Okabe–Ito based, colour-blind safe; assign in order, never reorder) ── */
+  --cat-1: #D55E00;                          /* Claude */
+  --cat-2: #00876A;                          /* Codex */
+  --cat-3: #3B8ED0;                          /* third source */
+  --cat-4: #B8860B;                          /* fourth source */
+  --cat-5: #0055A4;                          /* fifth source */
+  --cat-6: #B4589A;                          /* sixth source */
+  --cat-7: #7A6FD0;                          /* seventh source */
+  --cat-8: #7C7C80;                          /* "other" / everything else */
+
+  /* ── Shadows (light only; dark uses lighter surfaces instead) ─────────────── */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / .04), 0 8px 24px rgb(0 0 0 / .05);       /* cards and grouped lists */
+  --shadow-sheet: 0 -2px 8px rgb(0 0 0 / .04), 0 -16px 48px rgb(0 0 0 / .12);  /* bottom sheet panel */
+  --shadow-popover: 0 2px 6px rgb(0 0 0 / .06), 0 12px 32px rgb(0 0 0 / .14);  /* tooltip, popover, segmented thumb */
+
+  /* ── Derived colours (follow the theme automatically; never redefine in dark) ── */
+  --color-tint-soft: color-mix(in srgb, var(--color-tint) 12%, transparent);         /* tinted button, selected chip, info banner */
+  --color-positive-soft: color-mix(in srgb, var(--color-positive) 12%, transparent); /* positive badge / banner background */
+  --color-negative-soft: color-mix(in srgb, var(--color-negative) 12%, transparent); /* negative badge / error banner background */
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 12%, transparent);   /* warning badge / banner background */
+  --color-focus: color-mix(in srgb, var(--color-tint) 45%, transparent);             /* :focus-visible ring */
+  --heat-0: var(--color-fill-2);                                                       /* heatmap: no usage */
+  --heat-1: color-mix(in srgb, var(--color-tint) 25%, var(--color-bg));               /* heatmap: low */
+  --heat-2: color-mix(in srgb, var(--color-tint) 50%, var(--color-bg));               /* heatmap: medium */
+  --heat-3: color-mix(in srgb, var(--color-tint) 75%, var(--color-bg));               /* heatmap: high */
+  --heat-4: var(--color-tint);                                                         /* heatmap: highest */
+
+  /* ── Type (font shorthand; iOS text styles) ───────────────────────────────── */
+  --font-sans: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; /* all UI text */
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace; /* ids, stderr, code snippets */
+  --text-large-title: 700 34px/41px var(--font-sans);  /* screen title; big stat figures */
+  --text-title-1: 700 28px/34px var(--font-sans);      /* sheet title; hero numbers in a panel */
+  --text-title-2: 700 22px/28px var(--font-sans);      /* section headings inside a screen */
+  --text-title-3: 600 20px/25px var(--font-sans);      /* sidebar app name; empty-state title */
+  --text-headline: 600 17px/22px var(--font-sans);     /* emphasised body: row titles that lead, banner title */
+  --text-body: 400 17px/22px var(--font-sans);         /* default reading text, nav labels */
+  --text-callout: 400 16px/21px var(--font-sans);      /* row titles in dense lists, field text */
+  --text-subhead: 400 15px/20px var(--font-sans);      /* buttons, table cells, card headers */
+  --text-footnote: 400 13px/18px var(--font-sans);     /* secondary lines, list headers, chips */
+  --text-caption: 400 12px/16px var(--font-sans);      /* badges, axis labels, tooltips' fine print */
+  --tracking-tight: -0.02em;                           /* large-title / title-1 / stat figures */
+  --tracking-snug: -0.01em;                            /* title-2 / title-3 */
+
+  /* ── Spacing (4 px grid) ──────────────────────────────────────────────────── */
+  --space-1: 4px;    /* icon-to-text inside a chip or badge */
+  --space-2: 8px;    /* gap between related controls */
+  --space-3: 12px;   /* gap between icon and label in rows; inner padding of small controls */
+  --space-4: 16px;   /* row padding; gap between cards in a grid */
+  --space-5: 20px;   /* card padding */
+  --space-6: 24px;   /* gap between sections of a screen */
+  --space-7: 32px;   /* screen side padding; space above a large title */
+  --space-8: 40px;   /* empty-state breathing room; large-title collapse distance */
+
+  /* ── Radii ────────────────────────────────────────────────────────────────── */
+  --radius-sm: 8px;      /* icon tiles, chart bars' tops, skeleton lines, segmented thumb */
+  --radius-md: 12px;     /* fields, buttons that are not pills, banners, tooltips */
+  --radius-lg: 18px;     /* cards, grouped lists, tables */
+  --radius-xl: 22px;     /* sheet top corners */
+  --radius-pill: 999px;  /* buttons, chips, badges, switches, progress */
+
+  /* ── Sizes ────────────────────────────────────────────────────────────────── */
+  --hairline: 1px;               /* separators */
+  --size-row: 44px;              /* minimum row / nav-item height (touch-size target) */
+  --size-control: 32px;          /* buttons, segmented control, fields */
+  --size-tile: 28px;             /* coloured icon tile in sidebar and rows */
+  --size-icon: 18px;             /* inline SVG icon inside tiles, buttons, fields */
+  --size-switch-w: 51px;         /* switch track width */
+  --size-switch-h: 31px;         /* switch track height */
+  --size-switch-inset: 2px;      /* gap between switch track and thumb */
+  --size-progress: 8px;          /* progress track thickness */
+  --size-dot: 8px;               /* legend / chip colour dot, chart hover dot radius */
+  --size-sidebar: 260px;         /* sidebar width */
+  --size-topbar: 52px;           /* compact top bar height (sticky offset for table headers) */
+  --size-sheet-max: 720px;       /* max width of a sheet panel */
+  --size-sheet-height: 85%;      /* max height of a sheet panel, of the content pane */
+  --size-pane-narrow: 880px;     /* pane width below which .ts-grid--stats goes 2-up and --split stacks (repeated literally in components.css @container) */
+  --size-content-max: 1120px;    /* max width of a screen's content column */
+  --size-grabber-w: 36px;        /* sheet grabber width */
+  --size-grabber-h: 5px;         /* sheet grabber height */
+  --size-line: 2px;              /* chart line stroke; progress indicator lines */
+  --size-focus: 3px;             /* focus ring width */
+  --size-focus-offset: 2px;      /* focus ring gap */
+  --size-tooltip-max: 260px;     /* tooltip max width */
+  --size-banner-detail: 160px;   /* max height of scrollable stderr in a banner */
+
+  /* ── Materials (backdrop-filter values) ───────────────────────────────────── */
+  --blur-bar: blur(20px) saturate(180%);      /* top bar, tooltip, table sticky header */
+  --blur-sidebar: blur(40px) saturate(180%);  /* sidebar */
+  --blur-sheet: blur(6px);                    /* the backdrop behind a sheet */
+
+  /* ── Motion: springs are "<duration> <easing>" pairs; use as `transition: transform var(--spring-snappy)` ── */
+  --spring-snappy: 250ms linear(0, 0.01 1.9%, 0.049 4.4%, 0.139 8.1%, 0.459 19.4%, 0.594 25%, 0.702 30.6%, 0.793 36.9%, 0.869 44.4%, 0.925 53.1%, 0.966 65%, 0.991 84.4%, 1); /* controls: thumbs, switches, presses, pills (critically damped, no overshoot) */
+  --spring-smooth: 450ms linear(0, 0.014 2.5%, 0.06 5.6%, 0.171 10.6%, 0.453 21.9%, 0.597 28.7%, 0.711 35.6%, 0.804 43.1%, 0.877 51.9%, 0.932 62.5%, 0.971 76.9%, 0.992 99.4%, 1); /* screens, sheets, entrances, chart draw-in */
+  --spring-bouncy: 550ms linear(0, 0.013 1.9%, 0.049 3.8%, 0.121 6.3%, 0.262 10%, 0.567 17.5%, 0.72 21.9%, 0.827 25.6%, 0.921 30%, 0.985 34.4%, 1.028 39.4%, 1.049 45.6%, 1.042 55.6%, 1.004 78.8%, 1); /* celebratory accents only (5% overshoot) */
+  --dur-fast: 120ms;     /* hover overlays, colour cross-fades; every reduced-motion fade */
+  --dur-base: 200ms;     /* opacity fades of popovers and tooltips */
+  --dur-slow: 1600ms;    /* one skeleton shimmer sweep */
+  --stagger-step: 20ms;  /* delay per item in a staggered entrance (index capped at 12) */
+  --press-scale: .97;    /* scale of a pressed control or card */
+  --rise: 10px;          /* entrance travel distance (fade + rise) */
+  --opacity-pressed: .7; /* opacity of a pressed control */
+  --opacity-disabled: .38; /* opacity of a disabled control */
+  --opacity-dimmed: .35; /* chart marks that are not hovered */
+  --opacity-area: .16;   /* fill under a chart line */
+
+  /* ── Layers ───────────────────────────────────────────────────────────────── */
+  --z-bar: 10;       /* sticky top bar and table headers */
+  --z-sheet: 100;    /* sheet and its backdrop */
+  --z-tooltip: 200;  /* tooltips above everything */
+}
+
+/* ── Dark: keep these two blocks identical (tests/design.test.mjs checks) ────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --color-label: #FFFFFF;
+    --color-label-2: rgb(235 235 245 / .66);
+    --color-label-3: rgb(235 235 245 / .42);
+    --color-bg-grouped: #000000;
+    --color-bg: #1C1C1E;
+    --color-bg-2: #2C2C2E;
+    --color-bg-sheet: #1C1C1E;
+    --color-thumb: #636366;
+    --color-fill: rgb(120 120 128 / .36);
+    --color-fill-2: rgb(120 120 128 / .24);
+    --color-separator: rgb(84 84 88 / .6);
+    --color-hover: rgb(255 255 255 / .07);
+    --color-material: rgb(30 30 32 / .72);
+    --color-material-thick: rgb(22 22 24 / .7);
+    --color-scrim: rgb(0 0 0 / .5);
+    --color-shimmer: rgb(255 255 255 / .07);
+    --color-on-accent: #FFFFFF;
+    --color-tint: #5AAAFF;
+    --color-tint-contrast: #001A35;
+    --color-tint-fill: #006EE6;
+    --color-tint-fill-contrast: #FFFFFF;
+    --color-positive: #30D158;
+    --color-negative: #FF7A72;
+    --color-warning: #FFA526;
+    --cat-1: #F2803D;
+    --cat-2: #2EC4A0;
+    --cat-3: #6CC0F5;
+    --cat-4: #F0C24B;
+    --cat-5: #4F95E8;
+    --cat-6: #E08AC3;
+    --cat-7: #A69CF5;
+    --cat-8: #A1A1A6;
+    --shadow-card: none;
+    --shadow-sheet: 0 -16px 48px rgb(0 0 0 / .5);
+    --shadow-popover: 0 12px 32px rgb(0 0 0 / .5);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-label: #FFFFFF;
+  --color-label-2: rgb(235 235 245 / .66);
+  --color-label-3: rgb(235 235 245 / .42);
+  --color-bg-grouped: #000000;
+  --color-bg: #1C1C1E;
+  --color-bg-2: #2C2C2E;
+  --color-bg-sheet: #1C1C1E;
+  --color-thumb: #636366;
+  --color-fill: rgb(120 120 128 / .36);
+  --color-fill-2: rgb(120 120 128 / .24);
+  --color-separator: rgb(84 84 88 / .6);
+  --color-hover: rgb(255 255 255 / .07);
+  --color-material: rgb(30 30 32 / .72);
+  --color-material-thick: rgb(22 22 24 / .7);
+  --color-scrim: rgb(0 0 0 / .5);
+  --color-shimmer: rgb(255 255 255 / .07);
+  --color-on-accent: #FFFFFF;
+  --color-tint: #5AAAFF;
+  --color-tint-contrast: #001A35;
+  --color-tint-fill: #006EE6;
+  --color-tint-fill-contrast: #FFFFFF;
+  --color-positive: #30D158;
+  --color-negative: #FF7A72;
+  --color-warning: #FFA526;
+  --cat-1: #F2803D;
+  --cat-2: #2EC4A0;
+  --cat-3: #6CC0F5;
+  --cat-4: #F0C24B;
+  --cat-5: #4F95E8;
+  --cat-6: #E08AC3;
+  --cat-7: #A69CF5;
+  --cat-8: #A1A1A6;
+  --shadow-card: none;
+  --shadow-sheet: 0 -16px 48px rgb(0 0 0 / .5);
+  --shadow-popover: 0 12px 32px rgb(0 0 0 / .5);
+}

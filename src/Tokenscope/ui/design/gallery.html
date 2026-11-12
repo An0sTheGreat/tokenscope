@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tokenscope · Design system</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  /* Gallery-only chrome (prefix g-). Tokens only, like components.css. Not used by the app. */
+  .g-shell {
+    --g-index: calc(5 * var(--space-8) + var(--space-5));
+    display: grid;
+    grid-template-columns: var(--g-index) minmax(0, 1fr);
+  }
+  .g-index {
+    position: sticky; inset-block-start: 0; align-self: start;
+    block-size: 100vh; overflow: auto;
+    padding: var(--space-6) var(--space-2) var(--space-6) var(--space-4);
+  }
+  .g-index-brand { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3) var(--space-2); font: var(--text-headline); }
+  .g-index-group { margin: var(--space-5) 0 var(--space-1); padding-inline: var(--space-3); font: var(--text-caption); font-weight: 600; color: var(--color-label-2); }
+  .g-index a {
+    position: relative; display: block;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--color-label); font: var(--text-subhead); text-decoration: none;
+    &::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--color-fill-2); opacity: 0; transition: opacity var(--dur-fast) ease-out; }
+    &:hover::before { opacity: 1; }
+    &[aria-current] { color: var(--color-tint); font-weight: 600; }
+  }
+  .g-main { min-inline-size: 0; max-inline-size: calc(var(--size-content-max) + 2 * var(--space-7)); padding: var(--space-6) var(--space-7) var(--space-8); }
+  .g-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-4); }
+  .g-header .ts-button--plain { margin-inline-start: calc(-1 * var(--space-2)); }
+  .g-title { margin: var(--space-2) 0 var(--space-1); font: var(--text-large-title); letter-spacing: var(--tracking-tight); }
+  .g-lede { margin: 0; max-inline-size: 68ch; font: var(--text-callout); color: var(--color-label-2); }
+  .g-section { padding-block-start: calc(2 * var(--space-7)); scroll-margin-block-start: var(--space-2); }
+  .g-section > h2 { margin: 0 0 var(--space-1); font: var(--text-title-2); letter-spacing: var(--tracking-snug); }
+  .g-desc { margin: 0 0 var(--space-5); max-inline-size: 72ch; font: var(--text-subhead); color: var(--color-label-2); }
+  .g-desc code, .g-note code { font: var(--text-footnote); font-family: var(--font-mono); }
+  .g-h3 { margin: var(--space-6) 0 var(--space-3); font: var(--text-headline); }
+
+  /* demo = label + live stage + generated snippet */
+  .g-demo { margin-block-end: var(--space-6); }
+  .g-demo-label { margin: 0 0 var(--space-2); padding-inline: var(--space-1); font: var(--text-footnote); font-weight: 600; color: var(--color-label-2); }
+  .g-stage { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+  .g-stage > .ts-card, .g-stage > .ts-banner, .g-stage > .g-col { flex: 1 1 calc(7 * var(--space-8)); min-inline-size: 0; }
+  .g-stage > .ts-list, .g-stage > .g-list-wrap { flex: 1 1 calc(9 * var(--space-8)); }
+  .g-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .g-col { display: grid; gap: var(--space-3); align-content: start; }
+  .g-grid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(calc(7 * var(--space-8)), 1fr)); inline-size: 100%; }
+  .g-caption { font: var(--text-footnote); color: var(--color-label-2); }
+  .g-note { margin: var(--space-2) 0 0; padding-inline: var(--space-1); font: var(--text-footnote); color: var(--color-label-2); }
+  .g-code { margin-block-start: var(--space-2); }
+  .g-code summary {
+    display: flex; align-items: center; gap: var(--space-1);
+    inline-size: fit-content; padding-inline: var(--space-1);
+    font: var(--text-footnote); color: var(--color-label-2); list-style: none; cursor: default;
+    &::-webkit-details-marker { display: none; }
+    & .ts-button { min-block-size: 0; font: var(--text-footnote); }
+  }
+  .g-disclosure { inline-size: var(--space-3); block-size: var(--space-3); transition: rotate var(--spring-snappy); }
+  .g-code[open] .g-disclosure { rotate: 90deg; }
+  .g-code pre {
+    margin: var(--space-2) 0 0; padding: var(--space-4);
+    max-block-size: calc(9 * var(--space-8)); overflow: auto;
+    border-radius: var(--radius-md); background: var(--color-fill-2);
+    color: var(--color-label); font: var(--text-caption); font-family: var(--font-mono); tab-size: 2;
+  }
+  .g-ico { inline-size: var(--size-icon); block-size: var(--size-icon); }
+
+  /* tokens */
+  .g-swatches { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(calc(4 * var(--space-8) + var(--space-5)), 1fr)); margin-block-end: var(--space-5); }
+  .g-swatch { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-md); background: var(--color-bg); box-shadow: var(--shadow-card); }
+  .g-swatch-chip { flex: none; inline-size: var(--space-8); block-size: var(--space-8); border-radius: var(--radius-sm); box-shadow: inset 0 0 0 var(--hairline) var(--color-separator); }
+  .g-swatch-name { display: block; font: var(--text-footnote); font-family: var(--font-mono); }
+  .g-swatch-value { display: block; font: var(--text-caption); color: var(--color-label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g-swatch > span:last-child { min-inline-size: 0; }
+  .g-type-row { display: flex; align-items: baseline; gap: var(--space-4); padding-block: var(--space-2); box-shadow: inset 0 calc(-1 * var(--hairline)) 0 var(--color-separator); &:last-child { box-shadow: none; } }
+  .g-type-meta { flex: none; inline-size: calc(4 * var(--space-8)); font: var(--text-caption); font-family: var(--font-mono); color: var(--color-label-2); }
+  .g-type-sample { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .g-scale { display: grid; gap: var(--space-2); }
+  .g-scale-row { display: flex; align-items: center; gap: var(--space-4); font: var(--text-caption); font-family: var(--font-mono); color: var(--color-label-2); }
+  .g-scale-row > span:first-child { flex: none; inline-size: calc(3 * var(--space-8)); }
+  .g-space-bar { block-size: var(--space-3); border-radius: var(--radius-pill); background: var(--color-tint); }
+  .g-tiles { display: flex; flex-wrap: wrap; gap: var(--space-5); }
+  .g-tile { display: grid; place-items: center; inline-size: calc(2 * var(--space-8) + var(--space-5)); block-size: calc(2 * var(--space-8)); background: var(--color-bg); box-shadow: var(--shadow-card), inset 0 0 0 var(--hairline) var(--color-separator); font: var(--text-caption); font-family: var(--font-mono); color: var(--color-label-2); }
+  .g-tile--shadow { inline-size: calc(4 * var(--space-8)); block-size: calc(2 * var(--space-8) + var(--space-5)); border-radius: var(--radius-lg); box-shadow: none; }
+  .g-materials {
+    position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); align-items: center;
+    padding: var(--space-6); border-radius: var(--radius-lg); overflow: clip;
+    background:
+      radial-gradient(circle at 15% 30%, var(--cat-1), transparent 30%),
+      radial-gradient(circle at 55% 70%, var(--cat-5), transparent 30%),
+      radial-gradient(circle at 85% 25%, var(--cat-2), transparent 28%),
+      var(--color-bg);
+  }
+  .g-materials-word { position: absolute; inset: auto 0 var(--space-2); text-align: center; font: var(--text-large-title); font-size: calc(2 * var(--space-8)); letter-spacing: var(--tracking-tight); opacity: .5; }
+  .g-mat { position: relative; display: grid; place-items: center; block-size: calc(3 * var(--space-8)); border-radius: var(--radius-md); font: var(--text-footnote); font-weight: 600; text-align: center; }
+  .g-mat--bar { background: var(--color-material); backdrop-filter: var(--blur-bar); }
+  .g-mat--sidebar { background: var(--color-material-thick); backdrop-filter: var(--blur-sidebar); }
+  .g-mat--scrim { background: var(--color-scrim); backdrop-filter: var(--blur-sheet); color: var(--color-on-accent); }
+
+  /* motion */
+  .g-springs { display: grid; gap: var(--space-3); }
+  .g-spring { display: grid; grid-template-columns: calc(4 * var(--space-8)) calc(3 * var(--space-8)) minmax(0, 1fr) auto; align-items: center; gap: var(--space-5); }
+  .g-spring-meta { display: grid; gap: var(--space-1); font: var(--text-footnote); color: var(--color-label-2); & strong { font: var(--text-headline); color: var(--color-label); } }
+  .g-curve { inline-size: 100%; block-size: calc(2 * var(--space-8)); overflow: visible; }
+  .g-curve-guide { stroke: var(--color-separator); stroke-width: var(--hairline); stroke-dasharray: 2 3; fill: none; }
+  .g-curve-path { stroke: var(--color-tint); stroke-width: var(--size-line); fill: none; stroke-linecap: round; }
+  .g-track { container-type: inline-size; padding: var(--space-1); border-radius: var(--radius-pill); background: var(--color-fill-2); }
+  .g-puck {
+    --_spring: var(--spring-snappy);
+    display: block; inline-size: var(--size-control); block-size: var(--size-control);
+    border-radius: var(--radius-pill); background: var(--color-tint); box-shadow: var(--shadow-popover);
+    transition: translate var(--_spring);
+  }
+  [data-spring="smooth"] .g-puck { --_spring: var(--spring-smooth); }
+  [data-spring="bouncy"] .g-puck { --_spring: var(--spring-bouncy); }
+  [data-on] .g-puck { translate: calc(100cqi - var(--size-control)) 0; }
+
+  /* frames that stand in for the app window / content pane */
+  .g-frame {
+    position: relative; display: flex; inline-size: 100%;
+    border-radius: var(--radius-lg); overflow: clip;
+    background: var(--color-bg-grouped);
+    box-shadow: 0 0 0 var(--hairline) var(--color-separator), var(--shadow-card);
+  }
+  .g-frame--short { block-size: calc(9 * var(--space-8)); }
+  .g-frame--tall { block-size: calc(11 * var(--space-8)); }
+  .g-pane { position: relative; flex: 1; min-inline-size: 0; overflow: clip; }
+  .g-scroll { block-size: 100%; overflow: auto; }
+  .g-content { padding: 0 var(--space-7) var(--space-7); display: grid; gap: var(--space-4); }
+  .g-content > .ts-large-title { margin-block-end: calc(-1 * var(--space-2)); }
+  .g-chart-wrap { position: relative; }
+  .g-tip-stage { position: relative; block-size: calc(3 * var(--space-8)); flex: 1 1 calc(6 * var(--space-8)); }
+  .g-screen { grid-column: 1 / -1; position: relative; padding: 0 var(--space-7) var(--space-8); background: var(--color-bg-grouped); } /* covers the sticky index */
+  .g-screen > .ts-app { block-size: min(calc(20 * var(--space-8)), calc(100vh - var(--space-8))); box-shadow: 0 0 0 var(--hairline) var(--color-separator), var(--shadow-popover); border-radius: var(--radius-md); }
+  /* ?shell: the screen fragment alone at window size (checks .ts-app fills 100dvh without page scroll) */
+  [data-g-shell] :is(.g-index, .g-main, .g-screen > :not(.ts-app)) { display: none; }
+  [data-g-shell] .g-screen { padding: 0; }
+  [data-g-shell] .g-screen > .ts-app { block-size: 100dvh; border-radius: 0; box-shadow: none; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M13 15h4"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2.5h6"/></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zM4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M2.5 12h3M18.5 12h3M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 6l6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6l-6 6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9.5l6 6 6-6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.1"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.3L2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0zM12 9.5v4M12 17v.1"/></symbol>
+  <symbol id="i-error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v4.5H15"/></symbol>
+  <symbol id="i-export" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/></symbol>
+  <symbol id="i-tray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13.5L6.2 6a2 2 0 0 1 1.9-1.3h7.8A2 2 0 0 1 17.8 6l2.7 7.5V18a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-4.5zM3.5 13.5H8l1.2 2.5h5.6l1.2-2.5h4.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15L6 16zM10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.5 3.5 5.5 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.5-3.5-8.5s1-6 3.5-8.5z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2V7z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.9l10.4-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5z"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v4.5l3 2"/></symbol>
+</svg>
+
+<div class="g-shell">
+  <nav class="g-index" aria-label="Sections">
+    <div class="g-index-brand"><span class="ts-nav-icon"><svg aria-hidden="true"><use href="#i-logo"/></svg></span>Tokenscope</div>
+    <p class="g-index-group">Foundations</p>
+    <a href="#tokens">Tokens</a>
+    <a href="#motion">Motion</a>
+    <p class="g-index-group">Navigation</p>
+    <a href="#sidebar">Sidebar</a>
+    <a href="#topbar">Top bar &amp; large title</a>
+    <p class="g-index-group">Containers</p>
+    <a href="#card">Card</a>
+    <a href="#list">List &amp; row</a>
+    <a href="#sheet">Sheet</a>
+    <p class="g-index-group">Controls</p>
+    <a href="#button">Button</a>
+    <a href="#segmented">Segmented control</a>
+    <a href="#switch">Switch</a>
+    <a href="#chip">Chip</a>
+    <a href="#field">Field</a>
+    <p class="g-index-group">Data</p>
+    <a href="#stat">Stat</a>
+    <a href="#badge">Badge</a>
+    <a href="#table">Table</a>
+    <a href="#chart">Chart</a>
+    <a href="#tooltip">Tooltip</a>
+    <a href="#progress">Progress</a>
+    <p class="g-index-group">Feedback</p>
+    <a href="#banner">Banner</a>
+    <a href="#empty">Empty state</a>
+    <a href="#skeleton">Skeleton</a>
+    <p class="g-index-group">Composition</p>
+    <a href="#screen">Screen fragment</a>
+  </nav>
+
+  <main class="g-main">
+    <header class="g-header">
+      <a class="ts-button ts-button--plain" href="../index.html"><svg aria-hidden="true"><use href="#i-back"/></svg>Back to app</a>
+      <div class="ts-segmented" role="radiogroup" aria-label="Theme">
+        <span class="ts-segmented-thumb"></span>
+        <label class="ts-segmented-item"><input type="radio" name="g-theme" value="system"><span>System</span></label>
+        <label class="ts-segmented-item"><input type="radio" name="g-theme" value="light"><span>Light</span></label>
+        <label class="ts-segmented-item"><input type="radio" name="g-theme" value="dark"><span>Dark</span></label>
+      </div>
+    </header>
+    <h1 class="g-title">Design system</h1>
+    <p class="g-lede">Every token and component Tokenscope is built from, live. Each snippet is generated from the example above it, so it cannot drift. Rules: tokens only, animate only transform / opacity / filter, state lives in native attributes.</p>
+
+    <!-- ═══════════════════════════════ TOKENS ═══════════════════════════════ -->
+    <section class="g-section" id="tokens">
+      <h2>Tokens</h2>
+      <p class="g-desc">Defined once in <code>tokens.css</code>; every value below is read back from the live page, so it follows the theme toggle.</p>
+      <h3 class="g-h3">Colour</h3>
+      <div id="g-colours"></div>
+      <h3 class="g-h3">Type</h3>
+      <div class="ts-card" id="g-type"></div>
+      <h3 class="g-h3">Spacing</h3>
+      <div class="ts-card"><div class="g-scale" id="g-space"></div></div>
+      <h3 class="g-h3">Radii</h3>
+      <div class="g-tiles" id="g-radii"></div>
+      <h3 class="g-h3">Shadows</h3>
+      <p class="g-desc">Light only. Dark mode separates surfaces by lightness instead (card <code>--color-bg</code>, raised <code>--color-bg-2</code>).</p>
+      <div class="g-tiles" id="g-shadows"></div>
+      <h3 class="g-h3">Materials</h3>
+      <div class="g-materials">
+        <span class="g-materials-word" aria-hidden="true">$1,284.60</span>
+        <div class="g-mat g-mat--bar">--color-material<br>--blur-bar</div>
+        <div class="g-mat g-mat--sidebar">--color-material-thick<br>--blur-sidebar</div>
+        <div class="g-mat g-mat--scrim">--color-scrim<br>--blur-sheet</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ MOTION ═══════════════════════════════ -->
+    <section class="g-section" id="motion">
+      <h2>Motion</h2>
+      <p class="g-desc">Three springs, each a <code>duration + linear()</code> pair: <code>transition: translate var(--spring-snappy)</code>. Hover is instant or ≤ 120 ms, presses respond immediately, releases spring back.</p>
+      <div class="ts-card">
+        <div class="g-springs">
+          <div class="g-spring" data-spring="snappy">
+            <div class="g-spring-meta"><strong>Snappy</strong><span><span class="g-ms"></span> · no overshoot</span><span>Thumbs, switches, presses, pills</span></div>
+            <svg class="g-curve" viewBox="0 0 120 64" aria-hidden="true"><path class="g-curve-guide" d="M0 56H120M0 8H120"/><path class="g-curve-path"/></svg>
+            <div class="g-track"><span class="g-puck"></span></div>
+            <button class="ts-button ts-button--tinted" type="button" data-play><svg aria-hidden="true"><use href="#i-play"/></svg>Play</button>
+          </div>
+          <div class="g-spring" data-spring="smooth">
+            <div class="g-spring-meta"><strong>Smooth</strong><span><span class="g-ms"></span> · critically damped</span><span>Screens, sheets, entrances, charts</span></div>
+            <svg class="g-curve" viewBox="0 0 120 64" aria-hidden="true"><path class="g-curve-guide" d="M0 56H120M0 8H120"/><path class="g-curve-path"/></svg>
+            <div class="g-track"><span class="g-puck"></span></div>
+            <button class="ts-button ts-button--tinted" type="button" data-play><svg aria-hidden="true"><use href="#i-play"/></svg>Play</button>
+          </div>
+          <div class="g-spring" data-spring="bouncy">
+            <div class="g-spring-meta"><strong>Bouncy</strong><span><span class="g-ms"></span> · 5% overshoot</span><span>Celebratory accents only</span></div>
+            <svg class="g-curve" viewBox="0 0 120 64" aria-hidden="true"><path class="g-curve-guide" d="M0 56H120M0 8H120"/><path class="g-curve-path"/></svg>
+            <div class="g-track"><span class="g-puck"></span></div>
+            <button class="ts-button ts-button--tinted" type="button" data-play><svg aria-hidden="true"><use href="#i-play"/></svg>Play</button>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="g-h3">Staggered entrance <span class="g-caption">— <code>ts-enter</code> with <code>--i</code></span></h3>
+      <div class="g-demo">
+        <div class="g-stage">
+          <ul class="ts-list" id="g-stagger">
+            <li class="ts-row ts-enter" style="--i: 0"><span class="ts-row-content"><span class="ts-row-title">claude-opus-5-5</span></span><span class="ts-row-trailing">$842.17</span></li>
+            <li class="ts-row ts-enter" style="--i: 1"><span class="ts-row-content"><span class="ts-row-title">claude-sonnet-5</span></span><span class="ts-row-trailing">$231.06</span></li>
+            <li class="ts-row ts-enter" style="--i: 2"><span class="ts-row-content"><span class="ts-row-title">gpt-5.3-codex</span></span><span class="ts-row-trailing">$176.92</span></li>
+            <li class="ts-row ts-enter" style="--i: 3"><span class="ts-row-content"><span class="ts-row-title">claude-haiku-5</span></span><span class="ts-row-trailing">$34.45</span></li>
+          </ul>
+          <button class="ts-button ts-button--tinted" type="button" data-replay="g-stagger" data-g-skip><svg aria-hidden="true"><use href="#i-refresh"/></svg>Replay</button>
+        </div>
+      </div>
+      <div class="ts-banner" role="note">
+        <svg class="ts-banner-icon" aria-hidden="true"><use href="#i-info"/></svg>
+        <div class="ts-banner-content">
+          <span class="ts-banner-title">Reduced motion</span>
+          <p class="ts-banner-text">With “Show animations” off in Windows, every transition becomes a 120 ms opacity fade: no travel, no scale, no shimmer. Nothing to do per component — the block at the end of components.css handles it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ SIDEBAR ══════════════════════════════ -->
+    <section class="g-section" id="sidebar">
+      <h2>Sidebar &amp; nav item</h2>
+      <p class="g-desc"><code>ts-sidebar</code> › <code>ts-nav</code> › <code>ts-nav-pill</code> + <code>a.ts-nav-item</code>. The selection pill slides to the item with <code>aria-current="page"</code> (pure CSS, up to 8 items). Click the items; hover and press them.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="g-frame g-frame--short" data-g-frame>
+            <nav class="ts-sidebar" aria-label="Tokenscope">
+              <h2 class="ts-sidebar-title">Tokenscope</h2>
+              <div class="ts-nav">
+                <span class="ts-nav-pill"></span>
+                <a class="ts-nav-item" href="#" aria-current="page"><span class="ts-nav-icon"><svg aria-hidden="true"><use href="#i-grid"/></svg></span><span class="ts-nav-label">Overview</span></a>
+                <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-2)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span><span class="ts-nav-label">Sessions</span></a>
+                <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-7)"><svg aria-hidden="true"><use href="#i-chart"/></svg></span><span class="ts-nav-label">Reports</span></a>
+                <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-1)"><svg aria-hidden="true"><use href="#i-timer"/></svg></span><span class="ts-nav-label">Blocks</span></a>
+                <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-6)"><svg aria-hidden="true"><use href="#i-cube"/></svg></span><span class="ts-nav-label">Models</span></a>
+                <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-8)"><svg aria-hidden="true"><use href="#i-gear"/></svg></span><span class="ts-nav-label">Settings</span></a>
+              </div>
+            </nav>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ TOP BAR ══════════════════════════════ -->
+    <section class="g-section" id="topbar">
+      <h2>Top bar &amp; large title</h2>
+      <p class="g-desc">Scroll inside the frame: the large title fades away while the bar's material, hairline and compact title fade in (scroll-driven, no JS). The bar is sticky inside the content pane's scroller.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="g-frame g-frame--short" data-g-frame>
+            <div class="g-scroll" data-g-frame>
+              <header class="ts-topbar">
+                <h2 class="ts-topbar-title">Reports</h2>
+                <div class="ts-topbar-actions">
+                  <div class="ts-segmented" role="radiogroup" aria-label="Group by">
+                    <span class="ts-segmented-thumb"></span>
+                    <label class="ts-segmented-item"><input type="radio" name="tb-group" checked><span>Daily</span></label>
+                    <label class="ts-segmented-item"><input type="radio" name="tb-group"><span>Weekly</span></label>
+                    <label class="ts-segmented-item"><input type="radio" name="tb-group"><span>Monthly</span></label>
+                  </div>
+                  <button class="ts-button ts-button--tinted" type="button"><svg aria-hidden="true"><use href="#i-export"/></svg>Export</button>
+                </div>
+              </header>
+              <div class="g-content" data-g-frame>
+                <h1 class="ts-large-title">Reports</h1>
+                <div class="ts-card" data-g-skip><div class="ts-card-header"><h3 class="ts-card-title">November so far</h3></div><span class="ts-skeleton ts-skeleton--block"></span></div>
+                <div class="ts-card" data-g-skip><div class="ts-card-header"><h3 class="ts-card-title">October</h3></div><span class="ts-skeleton ts-skeleton--block"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ CARD ═════════════════════════════════ -->
+    <section class="g-section" id="card">
+      <h2>Card</h2>
+      <p class="g-desc">The grouped container every piece of content sits in. Use <code>a.ts-card</code> / <code>button.ts-card</code> when the whole card navigates — it gets a hover overlay and a press scale.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Static, with header and “See all”</p>
+        <div class="g-stage">
+          <article class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Spend by agent</h3><button class="ts-button ts-button--plain" type="button">See all</button></header>
+            <div class="ts-chart-legend"><span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude · $1,019.34</span><span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex · $265.26</span></div>
+          </article>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">Pressable (hover, press)</p>
+        <div class="g-stage">
+          <a class="ts-card" href="#">
+            <header class="ts-card-header"><h3 class="ts-card-title">Active block</h3><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></header>
+            <div class="ts-stat-value">2h 14m left</div>
+            <div class="ts-progress-label"><span>4.2M of 10M tokens</span><strong>42%</strong></div>
+            <div class="ts-progress" role="progressbar" aria-label="Block tokens" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" style="--value: .42"><span class="ts-progress-fill"></span></div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ LIST ═════════════════════════════════ -->
+    <section class="g-section" id="list">
+      <h2>List &amp; row</h2>
+      <p class="g-desc">44 px rows; hairlines inset to the title, never under the icon; none under the last row. Pressable rows (<code>a</code>/<code>button</code>) fade a fill in on press without moving.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Grouped list on the page background, with header and footer</p>
+        <div class="g-stage">
+          <div class="g-list-wrap" data-g-frame>
+            <p class="ts-list-header">General</p>
+            <ul class="ts-list">
+              <li class="ts-row">
+                <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-5)"><svg aria-hidden="true"><use href="#i-bell"/></svg></span></span>
+                <span class="ts-row-content"><span class="ts-row-title">Notify at 80% of a block</span></span>
+                <span class="ts-row-trailing"><input class="ts-switch" type="checkbox" role="switch" checked aria-label="Notify at 80% of a block"></span>
+              </li>
+              <li><a class="ts-row" href="#">
+                <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-2)"><svg aria-hidden="true"><use href="#i-globe"/></svg></span></span>
+                <span class="ts-row-content"><span class="ts-row-title">Time zone</span></span>
+                <span class="ts-row-trailing">Europe/Berlin</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </a></li>
+              <li><a class="ts-row" href="#" aria-disabled="true">
+                <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-8)"><svg aria-hidden="true"><use href="#i-folder"/></svg></span></span>
+                <span class="ts-row-content"><span class="ts-row-title">Export folder</span><span class="ts-row-subtitle">Disabled until a report exists</span></span>
+                <span class="ts-row-trailing">Not set</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </a></li>
+            </ul>
+            <p class="ts-list-footer">Tokenscope reads logs on this PC only; nothing is uploaded.</p>
+          </div>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">List inside a card (bleeds to the card edges)</p>
+        <div class="g-stage">
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Recent sessions</h3><button class="ts-button ts-button--plain" type="button">See all</button></header>
+            <ul class="ts-list">
+              <li><button class="ts-row" type="button">
+                <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-1)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span></span>
+                <span class="ts-row-content"><span class="ts-row-title">tokenscope · refactor shape.js</span><span class="ts-row-subtitle">claude-opus-5-5 · 1h 42m · 3.1M tokens</span></span>
+                <span class="ts-row-trailing">$12.84</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button></li>
+              <li><button class="ts-row" type="button">
+                <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-2)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span></span>
+                <span class="ts-row-content"><span class="ts-row-title">billing-api · fix webhook retries</span><span class="ts-row-subtitle">Codex · gpt-5.3-codex · 38m · 920K tokens</span></span>
+                <span class="ts-row-trailing">$3.07</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+              </button></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ SHEET ════════════════════════════════ -->
+    <section class="g-section" id="sheet">
+      <h2>Sheet</h2>
+      <p class="g-desc">Slides up from the bottom of the content pane over a dimmed, blurred backdrop. Open with <code>data-open</code>; closed sheets are <code>inert</code>. Dismiss with the backdrop, Escape or Done.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="g-frame g-frame--tall" data-g-frame>
+            <div class="g-pane" data-g-frame>
+              <div class="g-content" data-g-skip>
+                <h1 class="ts-large-title" style="animation: none">Sessions</h1>
+                <section class="ts-card">
+                  <ul class="ts-list">
+                    <li><button class="ts-row" type="button" data-sheet-open="g-sheet">
+                      <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-1)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span></span>
+                      <span class="ts-row-content"><span class="ts-row-title">tokenscope · refactor shape.js</span><span class="ts-row-subtitle">claude-opus-5-5 · 1h 42m</span></span>
+                      <span class="ts-row-trailing">$12.84</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+                    </button></li>
+                  </ul>
+                </section>
+                <div><button class="ts-button" type="button" data-sheet-open="g-sheet">Open sheet</button></div>
+              </div>
+              <div class="ts-sheet" id="g-sheet" inert>
+                <div class="ts-sheet-backdrop"></div>
+                <section class="ts-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="g-sheet-title">
+                  <div class="ts-sheet-grabber"></div>
+                  <header class="ts-sheet-header"><h2 class="ts-sheet-title" id="g-sheet-title">refactor shape.js</h2><button class="ts-button ts-button--plain" type="button" data-sheet-close>Done</button></header>
+                  <div class="ts-sheet-body">
+                    <ul class="ts-list">
+                      <li class="ts-row"><span class="ts-row-content"><span class="ts-row-title">Agent</span></span><span class="ts-row-trailing">Claude Code</span></li>
+                      <li class="ts-row"><span class="ts-row-content"><span class="ts-row-title">Model</span></span><span class="ts-row-trailing">claude-opus-5-5</span></li>
+                      <li class="ts-row"><span class="ts-row-content"><span class="ts-row-title">Tokens</span></span><span class="ts-row-trailing">3,104,882</span></li>
+                      <li class="ts-row"><span class="ts-row-content"><span class="ts-row-title">Cost</span></span><span class="ts-row-trailing">$12.84</span></li>
+                    </ul>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ BUTTON ═══════════════════════════════ -->
+    <section class="g-section" id="button">
+      <h2>Button</h2>
+      <p class="g-desc">Filled for the one primary action, <code>--tinted</code> for secondary, <code>--plain</code> for text actions such as “See all”. Hover overlays; press scales to 0.97 and dims.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Filled · tinted · plain, with and without icons</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-row" data-g-frame>
+              <button class="ts-button" type="button">Retry</button>
+              <button class="ts-button" type="button"><svg aria-hidden="true"><use href="#i-refresh"/></svg>Refresh now</button>
+              <button class="ts-button ts-button--tinted" type="button">Export CSV</button>
+              <button class="ts-button ts-button--tinted" type="button"><svg aria-hidden="true"><use href="#i-export"/></svg>Export</button>
+              <button class="ts-button ts-button--plain" type="button">See all</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">Disabled</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-row" data-g-frame>
+              <button class="ts-button" type="button" disabled>Retry</button>
+              <button class="ts-button ts-button--tinted" type="button" disabled>Export CSV</button>
+              <button class="ts-button ts-button--plain" type="button" disabled>See all</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ SEGMENTED ════════════════════════════ -->
+    <section class="g-section" id="segmented">
+      <h2>Segmented control</h2>
+      <p class="g-desc">Radios underneath, so arrow keys work. The thumb slides with the snappy spring and dips while pressed. Click through the options.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Range presets · group-by · with a disabled option · nothing selected</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-col" data-g-frame>
+              <div class="ts-segmented" role="radiogroup" aria-label="Range">
+                <span class="ts-segmented-thumb"></span>
+                <label class="ts-segmented-item"><input type="radio" name="seg-range"><span>Today</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="seg-range" checked><span>7 days</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="seg-range"><span>30 days</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="seg-range"><span>This month</span></label>
+              </div>
+              <div class="ts-segmented" role="radiogroup" aria-label="Group by">
+                <span class="ts-segmented-thumb"></span>
+                <label class="ts-segmented-item"><input type="radio" name="seg-group" checked><span>Daily</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="seg-group"><span>Weekly</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="seg-group" disabled><span>Monthly</span></label>
+              </div>
+              <div class="ts-segmented" role="radiogroup" aria-label="Agent">
+                <span class="ts-segmented-thumb"></span>
+                <label class="ts-segmented-item"><input type="radio" name="seg-agent"><span>Claude</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="seg-agent"><span>Codex</span></label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ SWITCH ═══════════════════════════════ -->
+    <section class="g-section" id="switch">
+      <h2>Switch</h2>
+      <p class="g-desc">A native checkbox: <code>input.ts-switch[type=checkbox][role=switch]</code>. Green when on; the thumb slides and stretches while pressed.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Off · on · disabled off · disabled on</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-row" data-g-frame>
+              <input class="ts-switch" type="checkbox" role="switch" aria-label="Launch at sign-in">
+              <input class="ts-switch" type="checkbox" role="switch" checked aria-label="Show cost in tray">
+              <input class="ts-switch" type="checkbox" role="switch" disabled aria-label="Sync prices">
+              <input class="ts-switch" type="checkbox" role="switch" checked disabled aria-label="Read Claude logs">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════ STACK & TOOLBAR ══════════════════════════ -->
+    <section class="g-section" id="toolbar">
+      <h2>Stack &amp; toolbar</h2>
+      <p class="g-desc"><code>ts-stack</code> is the vertical run every view renders into (standard gap). <code>ts-toolbar</code> is a row of controls with a leading and a trailing <code>ts-toolbar-group</code>; it wraps when narrow.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Filter row above a card</p>
+        <div class="g-stage">
+          <div class="ts-stack" data-g-frame>
+            <div class="ts-toolbar">
+              <div class="ts-toolbar-group">
+                <button class="ts-chip" type="button" aria-pressed="true">All</button>
+                <button class="ts-chip" type="button" aria-pressed="false"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude Code</button>
+                <button class="ts-chip" type="button" aria-pressed="false"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex</button>
+              </div>
+              <div class="ts-toolbar-group">
+                <button class="ts-button ts-button--tinted" type="button">CSV</button>
+                <button class="ts-button ts-button--plain" type="button">Custom</button>
+              </div>
+            </div>
+            <article class="ts-card"><div class="ts-card-header"><h3 class="ts-card-title">Daily cost</h3></div></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ CHIP ═════════════════════════════════ -->
+    <section class="g-section" id="chip">
+      <h2>Chip</h2>
+      <p class="g-desc">Static <code>span.ts-chip</code> for labels and legends; <code>button.ts-chip[aria-pressed]</code> for filters (click to toggle). <code>--dot</code> sets the colour dot.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Filter chips</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-row" data-g-frame>
+              <button class="ts-chip" type="button" aria-pressed="true"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude</button>
+              <button class="ts-chip" type="button" aria-pressed="false"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex</button>
+              <button class="ts-chip" type="button" aria-pressed="false">Unpriced only</button>
+              <span class="ts-chip">claude-opus-5-5</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">Chart legend (<code>ts-chart-legend</code> strips the chip background)</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="ts-chart-legend">
+              <span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude</span>
+              <span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex</span>
+              <span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-3)"></span>Gemini CLI</span>
+              <span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-8)"></span>Other</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ FIELD ════════════════════════════════ -->
+    <section class="g-section" id="field">
+      <h2>Field</h2>
+      <p class="g-desc">Text input or select in a soft well. Focus draws the ring around the whole field. <code>aria-invalid="true"</code> outlines it in red and reveals the following <code>ts-field-message</code>.</p>
+      <div class="g-demo">
+        <p class="g-demo-label">Search · text · select · invalid · disabled</p>
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-col" data-g-frame>
+              <label class="ts-field ts-field--search"><svg class="ts-field-icon" aria-hidden="true"><use href="#i-search"/></svg><input class="ts-field-input" type="search" placeholder="Search sessions" aria-label="Search sessions"></label>
+              <label class="ts-field"><input class="ts-field-input" type="text" value="Europe/Berlin" aria-label="Time zone"></label>
+              <label class="ts-field"><select class="ts-field-input" aria-label="Refresh interval"><option>Every 30 seconds</option><option selected>Every minute</option><option>Every 5 minutes</option></select><svg class="ts-field-icon" aria-hidden="true"><use href="#i-down"/></svg></label>
+              <div>
+                <label class="ts-field"><input class="ts-field-input" type="text" value="12k tokens" aria-label="Block token limit" aria-invalid="true" aria-describedby="g-limit-msg"></label>
+                <p class="ts-field-message" id="g-limit-msg">Enter a whole number, like 88000.</p>
+              </div>
+              <label class="ts-field"><input class="ts-field-input" type="text" value="C:\Users\you\.codex" aria-label="Codex folder" disabled></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ STAT ═════════════════════════════════ -->
+    <section class="g-section" id="stat">
+      <h2>Stat</h2>
+      <p class="g-desc">Widget-like figure on a card: <code>article.ts-card.ts-stat</code>. Optional sparkline (<code>svg.ts-stat-spark</code>, set <code>--series</code>). Rising cost is red, falling cost is green.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="ts-grid ts-grid--stats">
+            <article class="ts-card ts-stat">
+              <span class="ts-stat-label">This month</span>
+              <span class="ts-stat-value">$1,284.60</span>
+              <span class="ts-stat-meta"><span class="ts-badge ts-badge--negative">▲ 12.4%</span>vs October</span>
+              <svg class="ts-stat-spark" viewBox="0 0 200 40" preserveAspectRatio="none" aria-hidden="true" style="--series: var(--cat-1)"><path class="ts-chart-area" d="M0 32 L15.4 29.4 L30.8 33.7 L46.2 27.7 L61.5 24.3 L76.9 26 L92.3 20 L107.7 21.7 L123.1 17.4 L138.5 19.1 L153.8 14 L169.2 15.7 L184.6 9.7 L200 5.4 L200 40 L0 40 Z"/><path class="ts-chart-line" vector-effect="non-scaling-stroke" d="M0 32 L15.4 29.4 L30.8 33.7 L46.2 27.7 L61.5 24.3 L76.9 26 L92.3 20 L107.7 21.7 L123.1 17.4 L138.5 19.1 L153.8 14 L169.2 15.7 L184.6 9.7 L200 5.4"/></svg>
+            </article>
+            <article class="ts-card ts-stat">
+              <span class="ts-stat-label">Avg per session</span>
+              <span class="ts-stat-value">$3.42</span>
+              <span class="ts-stat-meta"><span class="ts-badge ts-badge--positive">▼ 6.0%</span>vs last week</span>
+            </article>
+            <article class="ts-card ts-stat">
+              <span class="ts-stat-label">Tokens</span>
+              <span class="ts-stat-value">182.4M</span>
+              <span class="ts-stat-meta"><span class="ts-badge">+21.6M</span>today</span>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ BADGE ════════════════════════════════ -->
+    <section class="g-section" id="badge">
+      <h2>Badge</h2>
+      <p class="g-desc">Tiny status pill. Neutral by default; <code>--positive</code>, <code>--negative</code>, <code>--warning</code>, <code>--tint</code>.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="g-row" data-g-frame>
+              <span class="ts-badge">14 sessions</span>
+              <span class="ts-badge ts-badge--positive">▼ 3.1%</span>
+              <span class="ts-badge ts-badge--negative">▲ 12.4%</span>
+              <span class="ts-badge ts-badge--warning">Unpriced</span>
+              <span class="ts-badge ts-badge--tint">Live</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ TABLE ════════════════════════════════ -->
+    <section class="g-section" id="table">
+      <h2>Table</h2>
+      <p class="g-desc">Borderless rows, right-aligned tabular figures (<code>ts-table-num</code>), sticky header. Click a header to sort, click a row with a caret to expand it.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Models · November</h3><button class="ts-button ts-button--plain" type="button">Export CSV</button></header>
+            <table class="ts-table">
+              <thead><tr>
+                <th class="ts-table-clip"><button class="ts-table-sort" type="button">Model<svg class="ts-table-caret" aria-hidden="true"><use href="#i-down"/></svg></button></th>
+                <th class="ts-table-num"><button class="ts-table-sort" type="button">Input<svg class="ts-table-caret" aria-hidden="true"><use href="#i-down"/></svg></button></th>
+                <th class="ts-table-num"><button class="ts-table-sort" type="button">Output<svg class="ts-table-caret" aria-hidden="true"><use href="#i-down"/></svg></button></th>
+                <th class="ts-table-num" aria-sort="descending"><button class="ts-table-sort" type="button">Cost<svg class="ts-table-caret" aria-hidden="true"><use href="#i-down"/></svg></button></th>
+              </tr></thead>
+              <tbody>
+                <tr class="ts-table-row" aria-expanded="false"><td><svg class="ts-table-caret" aria-hidden="true"><use href="#i-down"/></svg>claude-opus-5-5</td><td class="ts-table-num">48.2M</td><td class="ts-table-num">6.1M</td><td class="ts-table-num">$842.17</td></tr>
+                <tr class="ts-table-detail" hidden><td colspan="4"><div class="ts-table-detail-body">Cache reads 31.4M · cache writes 4.9M · 212 sessions · first used Nov 1, 09:12</div></td></tr>
+                <tr class="ts-table-row"><td class="ts-table-clip">claude-sonnet-5</td><td class="ts-table-num">39.7M</td><td class="ts-table-num">3.8M</td><td class="ts-table-num">$231.06</td></tr>
+                <tr class="ts-table-row"><td>gpt-5.3-codex</td><td class="ts-table-num">27.5M</td><td class="ts-table-num">2.2M</td><td class="ts-table-num">$176.92</td></tr>
+                <tr class="ts-table-row"><td>local/qwen3-coder <span class="ts-badge ts-badge--warning">Unpriced</span></td><td class="ts-table-num">3.1M</td><td class="ts-table-num">0.4M</td><td class="ts-table-num">—</td></tr>
+              </tbody>
+              <tfoot><tr><td>Total</td><td class="ts-table-num">118.5M</td><td class="ts-table-num">12.5M</td><td class="ts-table-num">$1,250.15</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ CHART ════════════════════════════════ -->
+    <section class="g-section" id="chart">
+      <h2>Chart primitives</h2>
+      <p class="g-desc">Live output of <code>charts.js</code>, drawn in CSS pixels (the viewBox is the container width, redrawn on resize without replaying entrances). Parts: <code>ts-chart</code>, <code>ts-chart-grid</code>, <code>ts-chart-axis</code>, <code>ts-chart-label</code>, <code>ts-chart-bar</code>, <code>ts-chart-area</code>, <code>ts-chart-line</code>, <code>ts-chart-cell</code>, <code>ts-chart-hit</code>, <code>ts-chart-hover</code>, <code>ts-chart-dot</code>, <code>ts-chart-legend</code>, <code>ts-chart-scale</code>, <code>ts-timeline-track</code>, <code>ts-timeline-now</code>. Entrances: <code>ts-chart-grow</code>, <code>ts-chart-grow--x</code>, <code>ts-chart-trace</code>, <code>ts-chart-fade</code>. <code>--series</code> colours a mark; hovering or focusing a mark dims its siblings. Rank list: <code>ts-rank</code> &gt; <code>ts-rank-row</code> &gt; <code>ts-rank-head</code> (<code>ts-rank-label</code>, <code>ts-rank-value</code>, <code>ts-rank-share</code>).</p>
+      <div class="g-demo">
+        <p class="g-demo-label">stackedBars · 30 days, two series; hover or Tab a column</p>
+        <div class="g-stage">
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Daily cost · last 30 days</h3><button class="ts-button ts-button--plain" type="button" data-replay="g-bars" data-g-skip>Replay</button></header>
+            <div id="g-bars"></div>
+          </section>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">lineChart · 90 days, traced in; cursor and dot snap to the nearest day</p>
+        <div class="g-stage">
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Total per day · last 90 days</h3><button class="ts-button ts-button--plain" type="button" data-replay="g-line" data-g-skip>Replay</button></header>
+            <div id="g-line"></div>
+          </section>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">rankBars · share list with an Unpriced badge</p>
+        <div class="g-stage">
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Cost by model · November</h3><button class="ts-button ts-button--plain" type="button" data-replay="g-rank" data-g-skip>Replay</button></header>
+            <div id="g-rank"></div>
+          </section>
+        </div>
+      </div>
+      <div class="g-demo">
+        <p class="g-demo-label">heatmap · 26 weeks; blockTimeline · last 72 hours with an active block; sparkline</p>
+        <div class="g-stage">
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Activity · last 26 weeks</h3></header>
+            <div id="g-heat"></div>
+          </section>
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Usage blocks · last 72 hours</h3><button class="ts-button ts-button--plain" type="button" data-replay="g-blocks" data-g-skip>Replay</button></header>
+            <div id="g-blocks"></div>
+          </section>
+          <section class="ts-card">
+            <header class="ts-card-header"><h3 class="ts-card-title">Sparkline</h3></header>
+            <svg class="ts-stat-spark" id="g-spark"></svg>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ TOOLTIP ══════════════════════════════ -->
+    <section class="g-section" id="tooltip">
+      <h2>Tooltip</h2>
+      <p class="g-desc">Chart readout. JS sets <code>style.translate</code> and <code>data-open</code>; it fades and scales in from 0.96 and glides between positions. Live in the charts above; pinned open here.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="g-tip-stage" data-g-frame>
+            <div class="ts-tooltip" role="tooltip" data-open style="translate: 16px 12px">
+              <div class="ts-tooltip-title">Nov 10 · $84.10</div>
+              <div class="ts-tooltip-row"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude<span class="ts-tooltip-value">$61.40</span></div>
+              <div class="ts-tooltip-row"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex<span class="ts-tooltip-value">$22.70</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ PROGRESS ═════════════════════════════ -->
+    <section class="g-section" id="progress">
+      <h2>Progress</h2>
+      <p class="g-desc"><code>--value</code> from 0 to 1 (above 1 shows full). The fill slides in from the left by transform. <code>--warning</code> near a limit, <code>--over</code> beyond it.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="ts-card" id="g-progress">
+            <div class="ts-progress-label"><span>Block tokens</span><strong>4.2M of 10M</strong></div>
+            <div class="ts-progress" role="progressbar" aria-label="Block tokens" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" style="--value: .42"><span class="ts-progress-fill"></span></div>
+            <div class="ts-progress-label"><span>Monthly budget</span><strong>$1,284.60 of $1,500</strong></div>
+            <div class="ts-progress ts-progress--warning" role="progressbar" aria-label="Monthly budget" aria-valuenow="86" aria-valuemin="0" aria-valuemax="100" style="--value: .86"><span class="ts-progress-fill"></span></div>
+            <div class="ts-progress-label"><span>Opus weekly limit</span><strong>112%</strong></div>
+            <div class="ts-progress ts-progress--over" role="progressbar" aria-label="Opus weekly limit" aria-valuenow="112" aria-valuemin="0" aria-valuemax="100" style="--value: 1.12"><span class="ts-progress-fill"></span></div>
+          </div>
+          <button class="ts-button ts-button--tinted" type="button" id="g-shuffle" data-g-skip>Shuffle values</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ BANNER ═══════════════════════════════ -->
+    <section class="g-section" id="banner">
+      <h2>Banner</h2>
+      <p class="g-desc">Page-level message above content. Informational by default; <code>--warning</code>; <code>--negative</code> for engine errors, with the raw output in <code>ts-banner-detail</code>.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="g-col" data-g-frame>
+            <div class="ts-banner" role="status">
+              <svg class="ts-banner-icon" aria-hidden="true"><use href="#i-info"/></svg>
+              <div class="ts-banner-content"><span class="ts-banner-title">Prices updated</span><p class="ts-banner-text">The model price list was refreshed today; costs since Nov 1 were recalculated.</p></div>
+            </div>
+            <div class="ts-banner ts-banner--warning" role="status">
+              <svg class="ts-banner-icon" aria-hidden="true"><use href="#i-warning"/></svg>
+              <div class="ts-banner-content"><span class="ts-banner-title">2 models are unpriced</span><p class="ts-banner-text">local/qwen3-coder and gpt-5.3-codex-mini have no price yet, so they count as $0.</p></div>
+              <button class="ts-button ts-button--tinted" type="button">Review</button>
+            </div>
+            <div class="ts-banner ts-banner--negative" role="alert">
+              <svg class="ts-banner-icon" aria-hidden="true"><use href="#i-error"/></svg>
+              <div class="ts-banner-content">
+                <span class="ts-banner-title">The usage engine stopped</span>
+                <p class="ts-banner-text">ccusage exited with code 1. Showing data from 10:42.</p>
+                <pre class="ts-banner-detail">Error: ENOENT: no such file or directory, scandir 'C:\Users\you\.claude\projects'
+    at Object.readdirSync (node:fs:1507:26)
+    at loadSessions (dist/index.js:2211:18)</pre>
+              </div>
+              <button class="ts-button" type="button">Retry</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ EMPTY ════════════════════════════════ -->
+    <section class="g-section" id="empty">
+      <h2>Empty state</h2>
+      <p class="g-desc">Centred glyph, title, one line of secondary text, optional button. Use for no data at all, a filter that matches nothing, no active block.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <div class="ts-card" data-g-frame>
+            <div class="ts-empty">
+              <div class="ts-empty-glyph"><svg aria-hidden="true"><use href="#i-tray"/></svg></div>
+              <h3 class="ts-empty-title">No usage yet</h3>
+              <p class="ts-empty-text">Tokenscope reads Claude Code and Codex logs on this PC. Run a session and it will show up here.</p>
+              <button class="ts-button" type="button">Choose log folder</button>
+            </div>
+          </div>
+          <div class="ts-card" data-g-frame>
+            <div class="ts-empty">
+              <div class="ts-empty-glyph"><svg aria-hidden="true"><use href="#i-search"/></svg></div>
+              <h3 class="ts-empty-title">No sessions match “haiku”</h3>
+              <p class="ts-empty-text">Try another model or project name.</p>
+              <button class="ts-button ts-button--tinted" type="button">Clear search</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════ SKELETON ═════════════════════════════ -->
+    <section class="g-section" id="skeleton">
+      <h2>Skeleton</h2>
+      <p class="g-desc">Loading placeholders in the final layout — never a blank window. A text line by default (set its width inline); <code>--title</code> for a big figure; <code>--block</code> for a chart.</p>
+      <div class="g-demo">
+        <div class="g-stage">
+          <article class="ts-card ts-stat" aria-busy="true">
+            <span class="ts-skeleton" style="width: 40%"></span>
+            <span class="ts-skeleton ts-skeleton--title"></span>
+            <span class="ts-skeleton" style="width: 65%"></span>
+          </article>
+          <section class="ts-card" aria-busy="true">
+            <span class="ts-skeleton" style="width: 30%"></span>
+            <span class="ts-skeleton ts-skeleton--block"></span>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ═══════════════════════════════ SCREEN FRAGMENT ════════════════════════ -->
+  <section class="g-section g-screen" id="screen">
+    <h2>Screen fragment</h2>
+    <p class="g-desc">The pieces composed as the Overview screen at app scale. Scroll the content pane to collapse the title; hover the bars; pick a session to open its sheet.</p>
+    <div class="ts-app">
+      <nav class="ts-sidebar" aria-label="Tokenscope">
+        <h2 class="ts-sidebar-title">Tokenscope</h2>
+        <div class="ts-nav">
+          <span class="ts-nav-pill"></span>
+          <a class="ts-nav-item" href="#" aria-current="page"><span class="ts-nav-icon"><svg aria-hidden="true"><use href="#i-grid"/></svg></span><span class="ts-nav-label">Overview</span></a>
+          <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-2)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span><span class="ts-nav-label">Sessions</span></a>
+          <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-7)"><svg aria-hidden="true"><use href="#i-chart"/></svg></span><span class="ts-nav-label">Reports</span></a>
+          <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-1)"><svg aria-hidden="true"><use href="#i-timer"/></svg></span><span class="ts-nav-label">Blocks</span></a>
+          <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-6)"><svg aria-hidden="true"><use href="#i-cube"/></svg></span><span class="ts-nav-label">Models</span></a>
+          <a class="ts-nav-item" href="#"><span class="ts-nav-icon" style="--tile: var(--cat-8)"><svg aria-hidden="true"><use href="#i-gear"/></svg></span><span class="ts-nav-label">Settings</span></a>
+        </div>
+      </nav>
+      <div class="ts-app-pane">
+        <div class="ts-app-main">
+          <header class="ts-topbar">
+            <h2 class="ts-topbar-title">Overview</h2>
+            <div class="ts-topbar-actions">
+              <div class="ts-segmented" role="radiogroup" aria-label="Range">
+                <span class="ts-segmented-thumb"></span>
+                <label class="ts-segmented-item"><input type="radio" name="scr-range"><span>Today</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="scr-range" checked><span>7 days</span></label>
+                <label class="ts-segmented-item"><input type="radio" name="scr-range"><span>This month</span></label>
+              </div>
+              <button class="ts-button ts-button--tinted" type="button" aria-label="Refresh"><svg aria-hidden="true"><use href="#i-refresh"/></svg></button>
+            </div>
+          </header>
+          <div class="ts-app-content">
+            <h1 class="ts-large-title">Overview</h1>
+            <div class="ts-grid ts-grid--stats">
+              <article class="ts-card ts-stat ts-enter" style="--i: 0">
+                <span class="ts-stat-label">This month</span>
+                <span class="ts-stat-value">$1,284.60</span>
+                <span class="ts-stat-meta"><span class="ts-badge ts-badge--negative">▲ 12.4%</span>vs October</span>
+              </article>
+              <article class="ts-card ts-stat ts-enter" style="--i: 1">
+                <span class="ts-stat-label">Today</span>
+                <span class="ts-stat-value">$94.10</span>
+                <span class="ts-stat-meta"><span class="ts-badge ts-badge--negative">▲ 11.9%</span>vs yesterday</span>
+              </article>
+              <article class="ts-card ts-stat ts-enter" style="--i: 2">
+                <span class="ts-stat-label">Avg per session</span>
+                <span class="ts-stat-value">$3.42</span>
+                <span class="ts-stat-meta"><span class="ts-badge ts-badge--positive">▼ 6.0%</span>vs last week</span>
+              </article>
+              <article class="ts-card ts-stat ts-enter" style="--i: 3">
+                <span class="ts-stat-label">Tokens</span>
+                <span class="ts-stat-value">182.4M</span>
+                <span class="ts-stat-meta"><span class="ts-badge">+21.6M</span>today</span>
+              </article>
+            </div>
+            <section class="ts-card ts-enter" style="--i: 4">
+              <header class="ts-card-header"><h3 class="ts-card-title">Daily cost</h3><div class="ts-chart-legend" style="margin: 0"><span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude</span><span class="ts-chip"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex</span></div></header>
+              <div class="g-chart-wrap">
+                <svg class="ts-chart" viewBox="0 0 520 180" role="img" aria-label="Daily cost, last 7 days">
+<line class="ts-chart-axis" x1="40" x2="520" y1="152" y2="152"/>
+<text class="ts-chart-label" x="32" y="156" text-anchor="end">$0</text>
+<line class="ts-chart-grid" x1="40" x2="520" y1="116" y2="116"/>
+<text class="ts-chart-label" x="32" y="120" text-anchor="end">$25</text>
+<line class="ts-chart-grid" x1="40" x2="520" y1="80" y2="80"/>
+<text class="ts-chart-label" x="32" y="84" text-anchor="end">$50</text>
+<line class="ts-chart-grid" x1="40" x2="520" y1="44" y2="44"/>
+<text class="ts-chart-label" x="32" y="48" text-anchor="end">$75</text>
+<line class="ts-chart-grid" x1="40" x2="520" y1="8" y2="8"/>
+<text class="ts-chart-label" x="32" y="12" text-anchor="end">$100</text>
+<g class="ts-chart-grow" style="--i: 0" data-day="Nov 5" data-claude="48.9" data-codex="16.2"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="60.3" y="128.7" width="28" height="23.3" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="60.3" y="56.3" width="28" height="70.4" rx="4"/></g>
+<text class="ts-chart-label" x="74.3" y="176" text-anchor="middle">Nov 5</text>
+<g class="ts-chart-grow" style="--i: 1" data-day="Nov 6" data-claude="57.6" data-codex="24.8"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="128.9" y="116.3" width="28" height="35.7" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="128.9" y="31.3" width="28" height="82.9" rx="4"/></g>
+<text class="ts-chart-label" x="142.9" y="176" text-anchor="middle">Nov 6</text>
+<g class="ts-chart-grow" style="--i: 2" data-day="Nov 7" data-claude="39.2" data-codex="13.5"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="197.4" y="132.6" width="28" height="19.4" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="197.4" y="74.1" width="28" height="56.4" rx="4"/></g>
+<text class="ts-chart-label" x="211.4" y="176" text-anchor="middle">Nov 7</text>
+<g class="ts-chart-grow" style="--i: 3" data-day="Nov 8" data-claude="14.8" data-codex="4.1"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="266" y="146.1" width="28" height="5.9" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="266" y="122.8" width="28" height="21.3" rx="4"/></g>
+<text class="ts-chart-label" x="280" y="176" text-anchor="middle">Nov 8</text>
+<g class="ts-chart-grow" style="--i: 4" data-day="Nov 9" data-claude="11.2" data-codex="3.6"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="334.6" y="146.8" width="28" height="5.2" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="334.6" y="128.7" width="28" height="16.1" rx="4"/></g>
+<text class="ts-chart-label" x="348.6" y="176" text-anchor="middle">Nov 9</text>
+<g class="ts-chart-grow" style="--i: 5" data-day="Nov 10" data-claude="61.4" data-codex="22.7"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="403.1" y="119.3" width="28" height="32.7" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="403.1" y="28.9" width="28" height="88.4" rx="4"/></g>
+<text class="ts-chart-label" x="417.1" y="176" text-anchor="middle">Nov 10</text>
+<g class="ts-chart-grow" style="--i: 6" data-day="Nov 11" data-claude="66.8" data-codex="27.3"><rect class="ts-chart-bar" style="--series: var(--cat-2)" x="471.7" y="112.7" width="28" height="39.3" rx="4"/><rect class="ts-chart-bar" style="--series: var(--cat-1)" x="471.7" y="14.5" width="28" height="96.2" rx="4"/></g>
+<text class="ts-chart-label" x="485.7" y="176" text-anchor="middle">Nov 11</text>
+                </svg>
+                <div class="ts-tooltip" role="tooltip">
+                  <div class="ts-tooltip-title">Nov 11</div>
+                  <div class="ts-tooltip-row"><span class="ts-chip-dot" style="--dot: var(--cat-1)"></span>Claude<span class="ts-tooltip-value">$66.80</span></div>
+                  <div class="ts-tooltip-row"><span class="ts-chip-dot" style="--dot: var(--cat-2)"></span>Codex<span class="ts-tooltip-value">$27.30</span></div>
+                </div>
+              </div>
+            </section>
+            <div class="ts-grid ts-grid--split">
+              <section class="ts-card ts-enter" style="--i: 5">
+                <header class="ts-card-header"><h3 class="ts-card-title">Recent sessions</h3><button class="ts-button ts-button--plain" type="button">See all</button></header>
+                <ul class="ts-list">
+                  <li><button class="ts-row" type="button" data-sheet-open="g-screen-sheet">
+                    <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-1)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span></span>
+                    <span class="ts-row-content"><span class="ts-row-title">tokenscope · refactor shape.js</span><span class="ts-row-subtitle">claude-opus-5-5 · 1h 42m · 3.1M tokens</span></span>
+                    <span class="ts-row-trailing">$12.84</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+                  </button></li>
+                  <li><button class="ts-row" type="button" data-sheet-open="g-screen-sheet">
+                    <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-2)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span></span>
+                    <span class="ts-row-content"><span class="ts-row-title">billing-api · fix webhook retries</span><span class="ts-row-subtitle">gpt-5.3-codex · 38m · 920K tokens</span></span>
+                    <span class="ts-row-trailing">$3.07</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+                  </button></li>
+                  <li><button class="ts-row" type="button" data-sheet-open="g-screen-sheet">
+                    <span class="ts-row-leading"><span class="ts-nav-icon" style="--tile: var(--cat-1)"><svg aria-hidden="true"><use href="#i-terminal"/></svg></span></span>
+                    <span class="ts-row-content"><span class="ts-row-title">docs-site · migrate to Astro 6</span><span class="ts-row-subtitle">claude-sonnet-5 · 2h 05m · 4.8M tokens</span></span>
+                    <span class="ts-row-trailing">$9.51</span><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg>
+                  </button></li>
+                </ul>
+              </section>
+              <a class="ts-card ts-enter" href="#" style="--i: 6">
+                <header class="ts-card-header"><h3 class="ts-card-title">Active block</h3><svg class="ts-row-chevron" aria-hidden="true"><use href="#i-chevron"/></svg></header>
+                <div class="ts-stat-value">2h 14m</div>
+                <div class="ts-progress-label"><span>4.2M of 10M tokens</span><strong>42%</strong></div>
+                <div class="ts-progress" role="progressbar" aria-label="Block tokens" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100" style="--value: .42"><span class="ts-progress-fill"></span></div>
+                <div class="ts-progress-label"><span>Burn rate</span><strong>$6.20 / h</strong></div>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="ts-sheet" id="g-screen-sheet" inert>
+          <div class="ts-sheet-backdrop"></div>
+          <section class="ts-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="g-screen-sheet-title">
+            <div class="ts-sheet-grabber"></div>
+            <header class="ts-sheet-header"><h2 class="ts-sheet-title" id="g-screen-sheet-title">Session</h2><button class="ts-button ts-button--plain" type="button" data-sheet-close>Done</button></header>
+            <div class="ts-sheet-body">
+              <div class="ts-grid ts-grid--stats">
+                <article class="ts-card ts-stat"><span class="ts-stat-label">Cost</span><span class="ts-stat-value">$12.84</span><span class="ts-stat-meta"><span class="ts-badge ts-badge--tint">Live</span>claude-opus-5-5</span></article>
+                <article class="ts-card ts-stat"><span class="ts-stat-label">Tokens</span><span class="ts-stat-value">3.1M</span><span class="ts-stat-meta">78% cache reads</span></article>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module">
+  import { stackedBars, lineChart, sparkline, rankBars, heatmap, blockTimeline } from '../charts.js';
+  import { money } from '../format.js';
+  if (new URLSearchParams(location.search).has('shell')) document.documentElement.dataset.gShell = '';
+  const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
+  const root = document.documentElement;
+
+  // --index contract (components.css): the selected position of a nav / segmented control.
+  const syncIndex = (el) => {
+    const items = $$(el.matches('.ts-nav') ? ':scope > .ts-nav-item' : ':scope > .ts-segmented-item', el);
+    const i = items.findIndex((it) => it.matches('[aria-current="page"]') || it.querySelector(':checked'));
+    el.style.setProperty('--index', String(Math.max(i, 0)));
+  };
+  for (const el of $$('.ts-nav, .ts-segmented')) syncIndex(el);
+  document.addEventListener('change', (e) => { const seg = e.target.closest('.ts-segmented'); if (seg) syncIndex(seg); });
+  const css = (name) => getComputedStyle(root).getPropertyValue(name).trim();
+  const SVG = 'http://www.w3.org/2000/svg';
+
+  // ── Theme toggle: System removes data-theme, Light/Dark force it ──
+  const themeKey = 'tokenscope-gallery-theme';
+  function applyTheme(v) {
+    if (v === 'system') root.removeAttribute('data-theme'); else root.dataset.theme = v;
+    localStorage.setItem(themeKey, v);
+    paintTokenValues();
+  }
+  const savedTheme = localStorage.getItem(themeKey) || 'system';
+  for (const r of $$('input[name="g-theme"]')) {
+    r.checked = r.value === savedTheme;
+    r.addEventListener('change', () => applyTheme(r.value));
+  }
+
+  // ── Tokens: rendered from names, values read back from the live page ──
+  const colourGroups = {
+    'Text': ['--color-label', '--color-label-2', '--color-label-3'],
+    'Surfaces': ['--color-bg-grouped', '--color-bg', '--color-bg-2', '--color-fill', '--color-fill-2', '--color-separator', '--color-hover', '--color-material', '--color-material-thick', '--color-scrim', '--color-on-accent'],
+    'Accent and status': ['--color-tint', '--color-tint-contrast', '--color-tint-soft', '--color-focus', '--color-positive', '--color-positive-soft', '--color-negative', '--color-negative-soft', '--color-warning', '--color-warning-soft'],
+    'Agent palette': ['--cat-1', '--cat-2', '--cat-3', '--cat-4', '--cat-5', '--cat-6', '--cat-7', '--cat-8'],
+    'Heat ramp': ['--heat-0', '--heat-1', '--heat-2', '--heat-3', '--heat-4'],
+  };
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const colourHost = document.getElementById('g-colours');
+  for (const [group, names] of Object.entries(colourGroups)) {
+    colourHost.append(el('p', 'g-demo-label', group));
+    const grid = el('div', 'g-swatches');
+    for (const name of names) {
+      const chip = el('span', 'g-swatch-chip');
+      chip.style.background = `var(${name})`;
+      const text = el('span');
+      text.append(el('span', 'g-swatch-name', name), el('span', 'g-swatch-value'));
+      const sw = el('div', 'g-swatch');
+      sw.append(chip, text);
+      grid.append(sw);
+    }
+    colourHost.append(grid);
+  }
+  function paintTokenValues() {
+    for (const sw of $$('.g-swatch')) sw.querySelector('.g-swatch-value').textContent = getComputedStyle(sw.firstChild).backgroundColor;
+  }
+  const typeHost = document.getElementById('g-type');
+  for (const [name, meta, sample] of [
+    ['--text-large-title', '34/41 bold', 'Overview'], ['--text-title-1', '28/34 bold', '$1,284.60'],
+    ['--text-title-2', '22/28 bold', 'This month'], ['--text-title-3', '20/25 semibold', 'No usage yet'],
+    ['--text-headline', '17/22 semibold', 'claude-opus-5-5'], ['--text-body', '17/22', 'Tokenscope reads logs on this PC.'],
+    ['--text-callout', '16/21', 'tokenscope · refactor shape.js'], ['--text-subhead', '15/20', 'Export CSV · Models · November'],
+    ['--text-footnote', '13/18', 'claude-opus-5-5 · 1h 42m · 3.1M tokens'], ['--text-caption', '12/16', '$25 · Nov 10 · ▲ 12.4%'],
+  ]) {
+    const row = el('div', 'g-type-row');
+    const s = el('span', 'g-type-sample', sample);
+    s.style.font = `var(${name})`;
+    if (/large-title|title-1/.test(name)) s.style.letterSpacing = 'var(--tracking-tight)';
+    row.append(el('span', 'g-type-meta', `${name}  ${meta}`), s);
+    typeHost.append(row);
+  }
+  const spaceHost = document.getElementById('g-space');
+  for (let i = 1; i <= 8; i++) {
+    const row = el('div', 'g-scale-row');
+    const bar = el('span', 'g-space-bar');
+    bar.style.inlineSize = `var(--space-${i})`;
+    row.append(el('span', null, `--space-${i}  ${css(`--space-${i}`)}`), bar);
+    spaceHost.append(row);
+  }
+  for (const r of ['sm', 'md', 'lg', 'xl', 'pill']) {
+    const t = el('div', 'g-tile', `--radius-${r}`);
+    t.style.borderRadius = `var(--radius-${r})`;
+    document.getElementById('g-radii').append(t);
+  }
+  for (const s of ['card', 'popover', 'sheet']) {
+    const t = el('div', 'g-tile g-tile--shadow', `--shadow-${s}`);
+    t.style.boxShadow = `var(--shadow-${s})`;
+    document.getElementById('g-shadows').append(t);
+  }
+
+  // ── Motion: draw each spring's curve from its token and play it ──
+  for (const row of $$('.g-spring')) {
+    const token = css(`--spring-${row.dataset.spring}`);
+    const body = token.slice(token.indexOf('(') + 1, token.lastIndexOf(')'));
+    const stops = body.split(',').map((p) => p.trim().split(/\s+/)).map(([v, pct], i) => [pct ? parseFloat(pct) / 100 : i ? 1 : 0, Number(v)]);
+    row.querySelector('.g-curve-path').setAttribute('d', 'M' + stops.map(([t, v]) => `${(t * 120).toFixed(1)} ${(56 - v * 48).toFixed(1)}`).join(' L'));
+    row.querySelector('.g-ms').textContent = `${parseFloat(token)} ms`;
+    row.querySelector('[data-play]').addEventListener('click', () => row.querySelector('.g-track').toggleAttribute('data-on'));
+  }
+
+  // ── Charts: live charts.js output on deterministic sample data ──
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const now = new Date();
+  const isoDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const dayAgo = (k) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - k);
+  const days = (n) => Array.from({ length: n }, (_, i) => isoDate(dayAgo(n - 1 - i)));
+  const wave = (n, base, amp) => Array.from({ length: n }, (_, i) => {
+    const weekend = [0, 6].includes(dayAgo(n - 1 - i).getDay());
+    return +(Math.max(0, base + amp * Math.sin(i / 3) + amp * (rnd() - 0.5)) * (weekend ? 0.35 : 1)).toFixed(2);
+  });
+  const d30 = days(30), d90 = days(90);
+  const claude = wave(30, 38, 18), codex = wave(30, 12, 8), total90 = wave(90, 45, 25);
+  const hour = 3600000, t0 = Math.floor(now.getTime() / hour) * hour;
+  const iso = (ms) => new Date(ms).toISOString();
+  const block = (id, agoH, usedH, cost, extra = {}) => ({ id, start: iso(t0 - agoH * hour), end: iso(t0 - agoH * hour + 5 * hour), actualEnd: iso(t0 - agoH * hour + usedH * hour), isActive: false, isGap: false, cost, tokens: cost * 61000, modelNames: ['claude-opus-5-5'], ...extra });
+  const blocks = [block('a', 66, 4.2, 18.4), block('b', 52, 3.1, 9.7), block('c', 44, 5, 31.2, { modelNames: ['claude-opus-5-5', 'claude-sonnet-5'] }), block('d', 26, 2.4, 6.1), block('e', 18, 4.6, 24.9), block('f', 3, 3, 14.2, { isActive: true, actualEnd: null })];
+  // 26 weeks starting on a Sunday; the days after today are passed but not drawn.
+  const firstDay = dayAgo(25 * 7 + now.getDay());
+  const heatCells = Array.from({ length: 26 * 7 }, (_, i) => {
+    const d = new Date(firstDay.getFullYear(), firstDay.getMonth(), firstDay.getDate() + i);
+    const v = rnd() * ([0, 6].includes(d.getDay()) ? 0.5 : 1) * (0.55 + i / 360);
+    return { date: isoDate(d), cost: +(v * 60).toFixed(2), level: Math.min(4, Math.floor(v * 5)) };
+  });
+  const byId = (id) => document.getElementById(id);
+  const chartDemos = {
+    'g-bars': () => stackedBars(byId('g-bars'), { labels: d30, format: money, series: [{ name: 'Claude', color: 'var(--cat-1)', values: claude }, { name: 'Codex', color: 'var(--cat-2)', values: codex }] }),
+    'g-line': () => lineChart(byId('g-line'), { labels: d90, values: total90, format: money }),
+    'g-rank': () => rankBars(byId('g-rank'), [
+      { label: 'claude-opus-5-5', value: 861.2, share: 0.67, color: 'var(--cat-1)', badge: null },
+      { label: 'claude-sonnet-5', value: 231.4, share: 0.18, color: 'var(--cat-3)', badge: null },
+      { label: 'gpt-5.3-codex', value: 179.9, share: 0.14, color: 'var(--cat-2)', badge: null },
+      { label: 'local-llama', value: 12.1, share: 0.01, color: 'var(--cat-8)', badge: 'Unpriced' }], { format: money }),
+    'g-heat': () => heatmap(byId('g-heat'), heatCells, { format: money }),
+    'g-blocks': () => blockTimeline(byId('g-blocks'), blocks, now.getTime(), { format: money }),
+  };
+  for (const draw of Object.values(chartDemos)) draw();
+  sparkline(byId('g-spark'), total90.slice(-30), { color: 'var(--cat-1)' });
+
+  // ── Snippets: serialise each live example with textContent only ──
+  const VOID = new Set(['input', 'br', 'img', 'hr']);
+  function attrs(n) {
+    let s = '';
+    for (const a of n.attributes) {
+      if (a.name.startsWith('data-g') || a.name === 'data-replay' || (a.name === 'checked' && n.localName === 'input')) continue;
+      s += a.value === '' ? ` ${a.name}` : ` ${a.name}="${a.value}"`;
+    }
+    if (n.localName === 'input' && n.checked) s += ' checked';
+    return s;
+  }
+  function serialise(n, depth, out) {
+    const pad = '  '.repeat(depth);
+    if (n.nodeType === Node.TEXT_NODE) { const t = n.textContent.replace(/\s+/g, ' ').trim(); if (t) out.push(pad + t); return; }
+    if (n.nodeType !== Node.ELEMENT_NODE || n.hasAttribute('data-g-skip')) return;
+    if (n.hasAttribute('data-g-frame')) { for (const c of n.childNodes) serialise(c, depth, out); return; }
+    const tag = n.localName, open = `<${tag}${attrs(n)}`;
+    if (tag === 'svg' && n.getAttribute('aria-hidden') === 'true') { out.push(`${pad}${open}>…</svg>`); return; }
+    const kids = [...n.childNodes].filter((c) => (c.nodeType === Node.ELEMENT_NODE && !c.hasAttribute('data-g-skip')) || (c.nodeType === Node.TEXT_NODE && c.textContent.trim()));
+    if (!kids.length) { out.push(pad + (VOID.has(tag) ? `${open}>` : n.namespaceURI === SVG ? `${open}/>` : `${open}></${tag}>`)); return; }
+    if (kids.length === 1 && kids[0].nodeType === Node.TEXT_NODE) { out.push(`${pad}${open}>${kids[0].textContent.replace(/\s+/g, ' ').trim()}</${tag}>`); return; }
+    out.push(`${pad}${open}>`);
+    // Long runs of identical siblings (bars, cells) are abbreviated after three.
+    for (let i = 0; i < kids.length; i++) {
+      let j = i;
+      const key = (c) => c.nodeType === Node.ELEMENT_NODE ? `${c.localName}.${c.getAttribute('class')}` : null;
+      while (j + 1 < kids.length && key(kids[j + 1]) && key(kids[j + 1]) === key(kids[i])) j++;
+      const run = j - i + 1;
+      if (run > 5) { for (let k = i; k < i + 3; k++) serialise(kids[k], depth + 1, out); out.push(`${pad}  <!-- ${run - 3} more ${key(kids[i])} -->`); i = j; }
+      else serialise(kids[i], depth + 1, out);
+    }
+    out.push(`${pad}</${tag}>`);
+  }
+  const snippetOf = (stage) => { const out = []; for (const c of stage.childNodes) serialise(c, 0, out); return out.join('\n'); };
+  const useIcon = (href, cls) => { const s = document.createElementNS(SVG, 'svg'); s.setAttribute('class', cls); s.setAttribute('aria-hidden', 'true'); const u = document.createElementNS(SVG, 'use'); u.setAttribute('href', href); s.append(u); return s; };
+  for (const stage of $$('.g-stage')) {
+    const details = el('details', 'g-code');
+    const summary = el('summary');
+    const pre = el('pre');
+    const copy = el('button', 'ts-button ts-button--plain', 'Copy');
+    copy.type = 'button';
+    summary.append(useIcon('#i-chevron', 'g-disclosure'), el('span', null, 'Markup'), copy);
+    details.append(summary, pre);
+    details.addEventListener('toggle', () => { if (details.open) pre.textContent = snippetOf(stage); });
+    copy.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await navigator.clipboard.writeText(snippetOf(stage));
+      copy.textContent = 'Copied';
+      setTimeout(() => { copy.textContent = 'Copy'; }, 1400);
+    });
+    stage.after(details);
+  }
+
+  // ── Interactions the app's dom.js will own; wired minimally here ──
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    const nav = t.closest('.ts-nav-item');
+    if (nav) for (const n of $$('.ts-nav-item', nav.parentElement)) n === nav ? n.setAttribute('aria-current', 'page') : n.removeAttribute('aria-current');
+    if (nav) syncIndex(nav.parentElement);
+    if (t.closest('a[href="#"]')) e.preventDefault();
+    const chip = t.closest('button.ts-chip[aria-pressed]');
+    if (chip) chip.setAttribute('aria-pressed', String(chip.getAttribute('aria-pressed') !== 'true'));
+    const sort = t.closest('.ts-table-sort');
+    if (sort) {
+      const th = sort.closest('th');
+      const next = th.getAttribute('aria-sort') === 'descending' ? 'ascending' : 'descending';
+      for (const h of $$('th', th.parentElement)) h.removeAttribute('aria-sort');
+      th.setAttribute('aria-sort', next);
+    }
+    const row = t.closest('.ts-table-row[aria-expanded]');
+    if (row) {
+      const open = row.getAttribute('aria-expanded') !== 'true';
+      row.setAttribute('aria-expanded', String(open));
+      row.nextElementSibling.hidden = !open;
+    }
+    const opener = t.closest('[data-sheet-open]');
+    if (opener) openSheet(document.getElementById(opener.dataset.sheetOpen), opener);
+    if (t.closest('[data-sheet-close]') || t.matches('.ts-sheet-backdrop')) closeSheet(t.closest('.ts-sheet'));
+    const replay = t.closest('[data-replay]');
+    if (replay && chartDemos[replay.dataset.replay]) chartDemos[replay.dataset.replay]();
+    else if (replay) { const old = document.getElementById(replay.dataset.replay); old.replaceWith(old.cloneNode(true)); }
+  });
+
+  let sheetOpener = null;
+  function openSheet(sheet, opener) {
+    sheetOpener = opener;
+    sheet.inert = false;
+    sheet.setAttribute('data-open', '');
+    sheet.querySelector('[data-sheet-close]').focus({ preventScroll: true });
+  }
+  function closeSheet(sheet) {
+    if (!sheet || !sheet.hasAttribute('data-open')) return;
+    sheet.removeAttribute('data-open');
+    sheet.inert = true;
+    sheetOpener?.focus({ preventScroll: true });
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') for (const s of $$('.ts-sheet[data-open]')) closeSheet(s); });
+
+  // Chart tooltips: stacked bars (per day group) and the line (nearest point).
+  function placeTip(wrap, tip, box) {
+    const w = wrap.getBoundingClientRect();
+    const x = Math.max(0, Math.min(w.width - tip.offsetWidth, box.left - w.left + box.width / 2 - tip.offsetWidth / 2));
+    tip.style.translate = `${x}px ${box.top - w.top - tip.offsetHeight - 8}px`;
+    tip.setAttribute('data-open', '');
+  }
+  for (const wrap of $$('.g-chart-wrap')) {
+    const tip = wrap.querySelector('.ts-tooltip');
+    const values = () => $$('.ts-tooltip-value', tip);
+    wrap.addEventListener('pointerover', (e) => {
+      const g = e.target.closest('g[data-day]');
+      if (!g) return;
+      for (const r of $$('[data-active]', wrap)) r.removeAttribute('data-active');
+      for (const r of $$('rect', g)) r.setAttribute('data-active', '');
+      tip.querySelector('.ts-tooltip-title').textContent = `${g.dataset.day} · ${money(+g.dataset.claude + +g.dataset.codex)}`;
+      const [c, x] = values();
+      c.textContent = money(g.dataset.claude);
+      x.textContent = money(g.dataset.codex);
+      placeTip(wrap, tip, g.getBoundingClientRect());
+    });
+    wrap.addEventListener('pointerleave', () => {
+      tip.removeAttribute('data-open');
+      for (const r of $$('[data-active]', wrap)) r.removeAttribute('data-active');
+    });
+  }
+  document.getElementById('g-shuffle').addEventListener('click', () => {
+    const [a, b, c] = $$('#g-progress .ts-progress');
+    a.style.setProperty('--value', (0.1 + Math.random() * 0.6).toFixed(2));
+    b.style.setProperty('--value', (0.75 + Math.random() * 0.2).toFixed(2));
+    c.style.setProperty('--value', (1 + Math.random() * 0.3).toFixed(2));
+  });
+
+  // Section index follows the scroll position.
+  const indexLinks = new Map($$('.g-index a').map((a) => [a.hash.slice(1), a]));
+  const spy = new IntersectionObserver((entries) => {
+    for (const en of entries) if (en.isIntersecting) for (const [id, a] of indexLinks) a.toggleAttribute('aria-current', id === en.target.id);
+  }, { rootMargin: '-15% 0px -75% 0px' });
+  for (const s of $$('.g-section')) spy.observe(s);
+
+  applyTheme(savedTheme);
+</script>
+</body>
+</html>
