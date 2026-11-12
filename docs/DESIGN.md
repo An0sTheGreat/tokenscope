@@ -384,7 +384,7 @@ Conventions (from the `components.css` header): prefix `ts-`; parts are `ts-<com
 </div>
 ```
 
-**Chart parts added by `charts.js`** (see the chart block in `components.css` and the live examples in the gallery): `ts-chart-hit` (a bar column's hover/focus area), `ts-chart-fade` and `ts-chart-scale` (entrances), `ts-rank` with `ts-rank-row`, `ts-rank-head`, `ts-rank-label`, `ts-rank-value`, `ts-rank-share` (ranked HTML bars), `ts-timeline-track` and `ts-timeline-now` (block timeline). Charts are drawn in CSS pixels: the SVG `viewBox` equals the container's width × the chart height, and the chart redraws when the width changes, so `ts-chart-label` text is always its real size.
+**Chart parts added by `charts.js`** (see the chart block in `components.css` and the live examples in the gallery): `ts-chart-hit` (a bar column's hover/focus area), `ts-chart-fade` and `ts-chart-scale` (entrances), `ts-rank` with `ts-rank-row`, `ts-rank-head`, `ts-rank-label`, `ts-rank-value`, `ts-rank-share` (ranked HTML bars; with more than 8 items the last row is an "Other (n)" button, `ts-rank-toggle` with a `ts-rank-chevron`, that expands `ts-rank-more` to list the folded items), `ts-timeline-track` and `ts-timeline-now` (block timeline). Charts are drawn in CSS pixels: the SVG `viewBox` equals the container's width × the chart height, and the chart redraws when the width changes, so `ts-chart-label` text is always its real size.
 
 ## 6. Motion
 
@@ -519,7 +519,7 @@ toolbar(leading, trailing)
 stackedBars(el, {labels /*ISO days*/, series:[{name, color, values}], format, height})
 lineChart(el, {labels /*ISO days*/, values, format, height, color, tipLabel(iso, i)})
 sparkline(el, values, {color})
-rankBars(el, [{label, value, share, color, badge}], {format})     // HTML; more than 8 items fold into "Other"
+rankBars(el, [{label, value, share, color, badge}], {format})     // HTML; more than 8 items: 7 listed, the rest in an expandable "Other (n)" row
 heatmap(el, cells /*from heatmapCells()*/, {format, today, legend = true})   // legend: false drops the Less/More scale (small cards)
 blockTimeline(el, blocks, nowMs, {hours, format})
 

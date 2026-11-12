@@ -857,7 +857,8 @@ select.ts-field-input { appearance: none; cursor: default; & option { background
    Purpose: a ranked share list (rankBars in charts.js), HTML rather than SVG.
    Knobs: --series on a row = its bar colour; --i = stagger index of the bar's grow-in.
    Anatomy: .ts-rank > .ts-rank-row* > .ts-rank-head (> .ts-chip-dot + .ts-rank-label + .ts-badge?
-            + .ts-rank-value + .ts-rank-share) + .ts-progress > .ts-progress-fill */
+            + .ts-rank-value + .ts-rank-share) + .ts-progress > .ts-progress-fill
+            last row when folded: button.ts-rank-head.ts-rank-toggle (> svg.ts-rank-chevron …) + .ts-progress + .ts-rank-more > .ts-rank-row* */
 .ts-rank { display: grid; gap: var(--space-4); }
 .ts-rank-head { display: flex; align-items: center; gap: var(--space-2); margin-block-end: var(--space-2); font: var(--text-footnote); }
 .ts-rank-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -865,6 +866,12 @@ select.ts-field-input { appearance: none; cursor: default; & option { background
 .ts-rank-share { min-inline-size: var(--space-8); text-align: end; color: var(--color-label-2); }
 .ts-rank .ts-progress { --_fill: var(--series); block-size: var(--space-1); }
 .ts-rank .ts-progress-fill { transition-delay: calc(min(var(--i), 12) * var(--stagger-step)); }
+/* The "Other" row (more than 8 items) is a button: its chevron turns and .ts-rank-more shows the folded rows. */
+.ts-rank-toggle { inline-size: 100%; padding: 0; border: 0; border-radius: var(--radius-sm); background: none; color: inherit; text-align: start; cursor: default; }
+.ts-rank-toggle:hover .ts-rank-label { color: var(--color-tint); }
+.ts-rank-chevron { flex: none; inline-size: var(--size-dot); block-size: var(--size-dot); fill: none; stroke: var(--color-label-2); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: rotate var(--spring-snappy); }
+.ts-rank-toggle[aria-expanded="true"] .ts-rank-chevron { rotate: 90deg; }
+.ts-rank-more { display: grid; gap: var(--space-3); margin-block-start: var(--space-4); padding-inline-start: var(--space-4); }
 
 /* ── Reduced motion ──────────────────────────────────────────────────────────
    Everything collapses to a 120 ms opacity fade: no travel, no scale, no shimmer, no springs. */

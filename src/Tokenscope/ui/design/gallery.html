@@ -705,7 +705,7 @@
     <!-- ═══════════════════════════════ CHART ════════════════════════════════ -->
     <section class="g-section" id="chart">
       <h2>Chart primitives</h2>
-      <p class="g-desc">Live output of <code>charts.js</code>, drawn in CSS pixels (the viewBox is the container width, redrawn on resize without replaying entrances). Parts: <code>ts-chart</code>, <code>ts-chart-grid</code>, <code>ts-chart-axis</code>, <code>ts-chart-label</code>, <code>ts-chart-bar</code>, <code>ts-chart-area</code>, <code>ts-chart-line</code>, <code>ts-chart-cell</code>, <code>ts-chart-hit</code>, <code>ts-chart-hover</code>, <code>ts-chart-dot</code>, <code>ts-chart-legend</code>, <code>ts-chart-scale</code>, <code>ts-timeline-track</code>, <code>ts-timeline-now</code>. Entrances: <code>ts-chart-grow</code>, <code>ts-chart-grow--x</code>, <code>ts-chart-trace</code>, <code>ts-chart-fade</code>. <code>--series</code> colours a mark; hovering or focusing a mark dims its siblings. Rank list: <code>ts-rank</code> &gt; <code>ts-rank-row</code> &gt; <code>ts-rank-head</code> (<code>ts-rank-label</code>, <code>ts-rank-value</code>, <code>ts-rank-share</code>).</p>
+      <p class="g-desc">Live output of <code>charts.js</code>, drawn in CSS pixels (the viewBox is the container width, redrawn on resize without replaying entrances). Parts: <code>ts-chart</code>, <code>ts-chart-grid</code>, <code>ts-chart-axis</code>, <code>ts-chart-label</code>, <code>ts-chart-bar</code>, <code>ts-chart-area</code>, <code>ts-chart-line</code>, <code>ts-chart-cell</code>, <code>ts-chart-hit</code>, <code>ts-chart-hover</code>, <code>ts-chart-dot</code>, <code>ts-chart-legend</code>, <code>ts-chart-scale</code>, <code>ts-timeline-track</code>, <code>ts-timeline-now</code>. Entrances: <code>ts-chart-grow</code>, <code>ts-chart-grow--x</code>, <code>ts-chart-trace</code>, <code>ts-chart-fade</code>. <code>--series</code> colours a mark; hovering or focusing a mark dims its siblings. Rank list: <code>ts-rank</code> &gt; <code>ts-rank-row</code> &gt; <code>ts-rank-head</code> (<code>ts-rank-label</code>, <code>ts-rank-value</code>, <code>ts-rank-share</code>, <code>ts-rank-toggle</code>, <code>ts-rank-chevron</code>, <code>ts-rank-more</code> (the expandable "Other" row when there are more than 8 items)).</p>
       <div class="g-demo">
         <p class="g-demo-label">stackedBars · 30 days, two series; hover or Tab a column</p>
         <div class="g-stage">
@@ -1140,7 +1140,13 @@
       { label: 'claude-opus-5-5', value: 861.2, share: 0.67, color: 'var(--cat-1)', badge: null },
       { label: 'claude-sonnet-5', value: 231.4, share: 0.18, color: 'var(--cat-3)', badge: null },
       { label: 'gpt-5.3-codex', value: 179.9, share: 0.14, color: 'var(--cat-2)', badge: null },
-      { label: 'local-llama', value: 12.1, share: 0.01, color: 'var(--cat-8)', badge: 'Unpriced' }], { format: money }),
+      { label: 'gpt-6-sol', value: 9.4, share: 0.007, color: 'var(--cat-4)', badge: null },
+      { label: 'claude-haiku-5-5', value: 6.2, share: 0.005, color: 'var(--cat-5)', badge: null },
+      { label: 'gpt-5.6-luna', value: 3.1, share: 0.002, color: 'var(--cat-6)', badge: null },
+      { label: 'claude-fable-5-2', value: 2.4, share: 0.002, color: 'var(--cat-7)', badge: null },
+      { label: 'gpt-5', value: 1.2, share: 0.001, color: 'var(--cat-8)', badge: null },
+      { label: 'gpt-5.4', value: 0.6, share: 0.0005, color: 'var(--cat-8)', badge: null },
+      { label: 'local-llama', value: 0, share: 0, color: 'var(--cat-8)', badge: 'Unpriced' }], { format: money }),
     'g-heat': () => heatmap(byId('g-heat'), heatCells, { format: money }),
     'g-blocks': () => blockTimeline(byId('g-blocks'), blocks, now.getTime(), { format: money }),
   };

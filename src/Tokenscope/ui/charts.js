@@ -255,23 +255,40 @@ export function sparkline(el, values, { color = 'var(--color-tint)' } = {}) {
   });
 }
 
+// More than 8 items: the 7 largest are listed and the rest fold into an "Other" row, which is a
+// button that expands to show them.
 export function rankBars(el, items, { format }) {
-  let rows = items;
-  if (items.length > 8) {
-    const rest = items.slice(7);
-    rows = [...items.slice(0, 7), { label: 'Other', value: sum(rest.map(r => r.value)), share: sum(rest.map(r => r.share)), color: 'var(--cat-8)', badge: rest.find(r => r.badge)?.badge ?? null }];
+  if (!items.length) return el.replaceChildren(emptyState());
+  const folded = items.length > 8 ? items.slice(7) : [];
+  const shown = folded.length ? items.slice(0, 7) : items;
+  const bar = r => h('div', { class: 'ts-progress', attrs: { role: 'progressbar', 'aria-valuenow': Math.round(r.share * 100), style: `--value: ${r.share}` } },
+    h('span', { class: 'ts-progress-fill' }));
+  const head = (r, lead) => [
+    lead ?? dot(r.color),
+    h('span', { class: 'ts-rank-label' }, r.label),
+    r.badge && h('span', { class: 'ts-badge ts-badge--warning' }, r.badge),
+    h('span', { class: 'ts-rank-value' }, format(r.value)),
+    h('span', { class: 'ts-rank-share' }, pct(r.share)),
+  ];
+  const row = (r, i) => h('div', { class: 'ts-rank-row', attrs: { style: `--i: ${i}; --series: ${r.color}` } }, h('div', { class: 'ts-rank-head' }, head(r)), bar(r));
+  const rows = shown.map(row);
+  if (folded.length) {
+    const other = { label: `Other (${folded.length})`, value: sum(folded.map(r => r.value)), share: sum(folded.map(r => r.share)), color: 'var(--cat-8)', badge: folded.find(r => r.badge)?.badge ?? null };
+    const more = h('div', { class: 'ts-rank-more', attrs: { hidden: '' } }, folded.map((r, i) => row({ ...r, color: other.color }, i)));
+    const chevron = svg('svg', { class: 'ts-rank-chevron', viewBox: '0 0 24 24', 'aria-hidden': 'true' }, svg('path', { d: 'M9 6l6 6-6 6' }));
+    const toggle = h('button', {
+      class: 'ts-rank-head ts-rank-toggle', attrs: { type: 'button', 'aria-expanded': 'false' },
+      onclick: () => {
+        const open = toggle.getAttribute('aria-expanded') !== 'true';
+        toggle.setAttribute('aria-expanded', String(open));
+        more.hidden = !open;
+      },
+    }, head(other, chevron));
+    rows.push(h('div', { class: 'ts-rank-row', attrs: { style: `--i: ${shown.length}; --series: ${other.color}` } }, toggle, bar(other), more));
   }
-  if (!rows.length) return el.replaceChildren(emptyState());
-  el.replaceChildren(h('div', { class: 'ts-rank', attrs: { role: 'img', 'aria-label': rows.map(r => `${r.label} ${format(r.value)} (${pct(r.share)})`).join(', ') } },
-    rows.map((r, i) => h('div', { class: 'ts-rank-row', attrs: { style: `--i: ${i}; --series: ${r.color}` } },
-      h('div', { class: 'ts-rank-head' },
-        dot(r.color),
-        h('span', { class: 'ts-rank-label' }, r.label),
-        r.badge && h('span', { class: 'ts-badge ts-badge--warning' }, r.badge),
-        h('span', { class: 'ts-rank-value' }, format(r.value)),
-        h('span', { class: 'ts-rank-share' }, pct(r.share))),
-      h('div', { class: 'ts-progress', attrs: { role: 'progressbar', 'aria-valuenow': Math.round(r.share * 100), style: `--value: ${r.share}` } },
-        h('span', { class: 'ts-progress-fill' }))))));
+  const label = items.map(r => `${r.label} ${format(r.value)} (${pct(r.share)})`).join(', ');
+  // with a button inside, the list is a group; a plain list stays one image for screen readers
+  el.replaceChildren(h('div', { class: 'ts-rank', attrs: { role: folded.length ? 'group' : 'img', 'aria-label': label } }, rows));
 }
 
 // today: 'YYYY-MM-DD' in the user's timezone (cells after it are not drawn); defaults to the PC date.
