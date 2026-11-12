@@ -10,10 +10,13 @@ export const icon = () => glyph('settings');
 export const filters = false;
 export const needsData = false;
 
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 const ENGINE_VERSION = '20.0.50';
 const REPO_URL = 'https://github.com/ccusage/ccusage';
 const LICENSE_URL = 'https://github.com/ccusage/ccusage/blob/main/LICENSE';
+// The licence asks that every copy carries the terms' URL and this notice line (see /LICENSE).
+const APP_LICENSE_URL = 'https://polyformproject.org/licenses/noncommercial/1.0.0';
+const APP_NOTICE = 'Required Notice: Copyright 2026 An0sTheGreat (https://github.com/An0sTheGreat/tokenscope)';
 
 // A validated text field in a row's trailing slot. `parse` returns the value to store, or throws
 // an Error whose message is shown under the field.
@@ -98,6 +101,7 @@ export function render(el, ctx) {
     ]),
     list('About', [
       row({ title: 'Tokenscope', subtitle: 'An unofficial desktop front end for ccusage.', trailing: `Version ${APP_VERSION}` }),
+      row({ title: 'PolyForm Noncommercial License 1.0.0', subtitle: APP_NOTICE, trailing: link('Licence', APP_LICENSE_URL) }),
       row({ title: `ccusage ${ENGINE_VERSION}`, subtitle: 'The bundled engine that reads the logs and prices them. MIT licence, © ryoppippi.', trailing: h('span', { class: 'ts-toolbar-group' }, link('Project', REPO_URL), link('Licence', LICENSE_URL)) }),
       row({ title: 'Design gallery', subtitle: 'Every component and token used by this app.', onClick: () => { location.href = 'design/gallery.html'; } }),
     ], 'Shortcuts: 1–6 switch screens, R refreshes.'),
