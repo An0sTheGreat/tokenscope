@@ -159,11 +159,11 @@ sealed class MainForm : Form
                         Description = "Choose the folder Tokenscope syncs through, for example one inside Google Drive",
                         UseDescriptionForTitle = true, InitialDirectory = syncFolder ?? "",
                     })
-                        if (pick.ShowDialog(this) == DialogResult.OK) MachineSync.SaveFolder(syncFolder = pick.SelectedPath);
+                        if (pick.ShowDialog(this) == DialogResult.OK) SetSyncFolder(pick.SelectedPath);
                     Reply(id, true, data: MachineSync.InfoJson(syncFolder));
                     break;
                 case "syncOff":
-                    MachineSync.SaveFolder(syncFolder = null);
+                    SetSyncFolder(null);
                     Reply(id, true, data: MachineSync.InfoJson(syncFolder));
                     break;
                 case "sync":
@@ -188,6 +188,14 @@ sealed class MainForm : Form
         {
             Reply(id, false, error: ex.Message);
         }
+    }
+
+    // Stored before it takes effect, so memory, the page and the next start can never disagree.
+    // If it cannot be stored the folder stays as it was and the page is told the current state.
+    void SetSyncFolder(string? folder)
+    {
+        try { MachineSync.SaveFolder(folder); syncFolder = folder; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
     }
 
     static string? Str(JsonElement msg, string name) =>

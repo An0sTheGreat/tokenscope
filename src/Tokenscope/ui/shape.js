@@ -305,6 +305,7 @@ export function toCsv(rows, columns) {
 // shape and everything inside goes through the same normalisation as local engine output.
 
 export const SNAPSHOT_VERSION = 1;
+const MAX_DATE_MS = 8.64e15;   // the largest instant a Date can hold
 const cleanName = v => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40);
 
 export function shapeSnapshot(snap) {
@@ -312,7 +313,7 @@ export function shapeSnapshot(snap) {
   try {
     return {
       name: cleanName(snap.machine) || 'Unnamed PC',
-      savedAt: Number.isFinite(snap.savedAt) ? snap.savedAt : null,
+      savedAt: Number.isFinite(snap.savedAt) && Math.abs(snap.savedAt) <= MAX_DATE_MS ? snap.savedAt : null,   // must survive new Date()
       ...shapeMain(snap.raw.main, snap.raw.sessions),
       projects: shapeProjects(snap.raw.projects),
     };
@@ -325,8 +326,9 @@ export function shapeMachines(local, snapshots = []) {
   const taken = new Set();
   return [{ ...local, name: cleanName(local.name) || 'This PC', local: true }, ...snapshots.map(shapeSnapshot).filter(Boolean).map(m => ({ ...m, local: false }))]
     .map(m => {
-      let name = m.name;
-      for (let n = 2; taken.has(name); n++) name = `${m.name} (${n})`;
+      const base = m.name.toLowerCase() === 'all' ? `${m.name} (PC)` : m.name;   // 'all' is the filter's "every PC" value
+      let name = base;
+      for (let n = 2; taken.has(name); n++) name = `${base} (${n})`;
       taken.add(name);
       return { ...m, name };
     });

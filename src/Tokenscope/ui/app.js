@@ -107,6 +107,7 @@ async function loadAll() {
   const key = settingsKey();
   const a = engineArgs(settings);
   const [main, sess, blk, proj] = await Promise.allSettled([bridge.run(a.main), bridge.run(a.sessions), bridge.run(a.blocks), bridge.run(a.projects)]);
+  loading = false;
   const first = !all;
   if (main.status === 'fulfilled') {
     raw = {
@@ -119,8 +120,6 @@ async function loadAll() {
     error = failed ? messageOf(failed.reason) : null;
     errorPartial = !!failed;
     updatedAt = Date.now();
-    await syncReady;
-    await exchange(true);
     shape();
     pushTray();
   } else {
@@ -132,9 +131,10 @@ async function loadAll() {
       pushTray();
     }
   }
-  loading = false;
   // Cache only what rendered: a payload that breaks a view must never be shown again at start-up.
   if (safeRender(first) && main.status === 'fulfilled') persist('tokenscope.cache', { key, savedAt: updatedAt, raw });
+  // Local data is on screen first; the snapshot exchange follows and can never hold a refresh up.
+  if (main.status === 'fulfilled') syncReady.then(() => { if (sync.folder) resync(); });
   if (key !== settingsKey()) loadAll();   // a setting changed while loading
 }
 
@@ -157,14 +157,19 @@ async function loadBlocks() {
 
 // Writes this PC's snapshot (when asked and there is data) and reads the others. A sync failure never
 // blocks local data: it is reported in Settings and the last snapshots read stay in use.
+let exchanging = false;
 async function exchange(write) {
   if (!sync.folder) { remote = []; syncError = null; return; }
+  if (exchanging) return;   // one at a time; the next refresh catches up
+  exchanging = true;
   try {
     const content = write && raw ? JSON.stringify({ v: SNAPSHOT_VERSION, machine: localName(), savedAt: updatedAt, raw: { main: raw.main, sessions: raw.sessions, projects: raw.projects } }) : null;
-    const got = await bridge.sync(content);
+    // A cloud-drive folder can stall on a file that is not downloaded: give up rather than wait for ever.
+    const got = await Promise.race([bridge.sync(content), new Promise((_, no) => setTimeout(() => no(new Error('The sync folder did not respond.')), 30_000))]);
     remote = Array.isArray(got) ? got : [];
     syncError = null;
   } catch (e) { syncError = messageOf(e); }
+  exchanging = false;
 }
 
 // After the folder, this PC's name or the snapshots changed: re-merge and repaint.

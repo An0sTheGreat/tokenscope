@@ -311,6 +311,9 @@ test('shapeSnapshot: accepts the expected shape only; names are cleaned and capp
   assert.deepEqual(m.projects, []);
   for (const bad of [null, 'x', [], {}, { v: 2, raw: { main: {} } }, { v: 1 }, { v: 1, raw: { main: null } }, { v: 1, raw: { main: { daily: 'nope' } } }]) assert.equal(shapeSnapshot(bad), null);
   assert.equal(shapeSnapshot({ v: 1, machine: 7, savedAt: 'x', raw: { main: {} } }).savedAt, null);
+  // an instant a Date cannot hold would throw in every view that formats it
+  for (const savedAt of [1e300, -1e17, Infinity, NaN]) assert.equal(shapeSnapshot({ ...snap, savedAt }).savedAt, null);
+  assert.equal(shapeSnapshot({ ...snap, savedAt: 8.64e15 }).savedAt, 8.64e15);
 });
 
 test('shapeMachines + mergeMachines: unique names, days summed per agent and model, rows tagged', () => {
@@ -327,6 +330,11 @@ test('shapeMachines + mergeMachines: unique names, days summed per agent and mod
   assert.deepEqual(day2.agents.map(a => [a.agent, a.cost]), [['claude', 12], ['codex', 3]]);
   assert.deepEqual(day2.models.map(m => [m.name, m.cost]), [['claude-model', 12], ['codex-model', 3]]);
   assert.equal(day2.tokens, 1500);
+  assert.deepEqual([day2.input, day2.output, day2.cacheWrite, day2.cacheRead], [1500, 0, 0, 0]);
+  assert.deepEqual(day2.agents.map(a => a.models.map(m => [m.name, m.cost, m.input])), [[['claude-model', 12, 1200]], [['codex-model', 3, 300]]]);
+  const priced = m => ({ ...m, unpriced: ['m1'] });
+  assert.deepEqual(mergeMachines([priced(machines[0]), { ...machines[1], unpriced: ['m2', 'm1'] }]).unpriced, ['m1', 'm2']);
+  assert.deepEqual(shapeMachines({ ...local, name: 'All' }, [snap('all', {})]).map(m => m.name), ['All (PC)', 'all (PC)']);
   assert.deepEqual(all.sessions.map(s => [s.id, s.machine]), [['b', 'Home (2)'], ['b', 'Home (3)'], ['a', 'Home']]);
   assert.deepEqual(all.agents, ['claude', 'codex']);
   assert.deepEqual(all.projects.map(p => [p.key, p.machine]), [['K', 'Home']]);
