@@ -158,6 +158,7 @@ async function loadBlocks() {
 // Writes this PC's snapshot (when asked and there is data) and reads the others. A sync failure never
 // blocks local data: it is reported in Settings and the last snapshots read stay in use.
 let exchanging = false;
+const recipe = () => { const { main, sessions, projects } = engineArgs(settings); return { machine: localName(), args: { main, sessions, projects } }; };
 async function exchange(write) {
   if (!sync.folder) { remote = []; syncError = null; return; }
   if (exchanging) return;   // one at a time; the next refresh catches up
@@ -165,7 +166,7 @@ async function exchange(write) {
   try {
     const content = write && raw ? JSON.stringify({ v: SNAPSHOT_VERSION, machine: localName(), savedAt: updatedAt, raw: { main: raw.main, sessions: raw.sessions, projects: raw.projects } }) : null;
     // A cloud-drive folder can stall on a file that is not downloaded: give up rather than wait for ever.
-    const got = await Promise.race([bridge.sync(content), new Promise((_, no) => setTimeout(() => no(new Error('The sync folder did not respond.')), 30_000))]);
+    const got = await Promise.race([bridge.sync(content, content ? recipe() : null), new Promise((_, no) => setTimeout(() => no(new Error('The sync folder did not respond.')), 30_000))]);
     remote = Array.isArray(got) ? got : [];
     syncError = null;
   } catch (e) { syncError = messageOf(e); }

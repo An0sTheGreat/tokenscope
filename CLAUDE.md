@@ -24,6 +24,7 @@ Windows desktop dashboard that shows AI coding-agent token usage and cost (Claud
 - Animate only transform, opacity and filter (`translate`/`scale`/`rotate` included).
 - No `innerHTML`, `outerHTML` or `insertAdjacentHTML`. Strings from disk are untrusted. Build DOM with `h()`/`svg()`.
 - Views never call the engine or `bridge.js`. They read `ctx.vm` and act through `ctx.actions`.
+- `Tokenscope.exe --sync` writes this PC's snapshot without opening the window (for Task Scheduler) and logs each run to `%LOCALAPPDATA%Tokenscopesync.log`.
 - Machine sync (`Sync.cs`, `bridge.sync*`, `shapeMachines`/`mergeMachines` in `shape.js`): the page never names a file path, and snapshots from other PCs are untrusted input that must go through `shapeSnapshot`.
 - Check every UI change in light and dark.
 

@@ -97,11 +97,12 @@ export async function syncInfo() { return hosted ? syncInfoOf(await request('syn
 export async function syncPick() { return hosted ? syncInfoOf(await request('syncPick')) : demoInfo(); }
 export async function syncOff() { return hosted ? syncInfoOf(await request('syncOff')) : { ...demoInfo(), folder: null }; }
 
-// content: this PC's snapshot as a JSON string, or null to only read. Resolves to the other PCs'
-// snapshots (untrusted: shape.js validates them).
-export async function sync(content) {
+// content: this PC's snapshot as a JSON string, or null to only read. recipe ({machine, args}) tells
+// the host how the snapshot was built, so its headless --sync run can repeat it. Resolves to the
+// other PCs' snapshots (untrusted: shape.js validates them).
+export async function sync(content, recipe = null) {
   if (hosted) {
-    const reply = await request('sync', { content });
+    const reply = await request('sync', { content, recipe });
     if (!reply.ok) throw new Error(reply.error || 'sync failed');
     return reply.data;
   }

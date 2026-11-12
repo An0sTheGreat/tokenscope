@@ -11,7 +11,7 @@ export const icon = () => glyph('settings');
 export const filters = false;
 export const needsData = false;
 
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const ENGINE_VERSION = '20.0.50';
 const REPO_URL = 'https://github.com/ccusage/ccusage';
 const LICENSE_URL = 'https://github.com/ccusage/ccusage/blob/main/LICENSE';
@@ -114,7 +114,7 @@ export function render(el, ctx) {
           ? others.map(m => `${m.name}, synced ${m.savedAt ? relative(new Date(m.savedAt).toISOString(), nowMs) : 'at an unknown time'}`).join(' · ')
           : 'Open Tokenscope on another PC and choose the same folder there.'),
       }) : null,
-    ].filter(Boolean), 'Each PC writes one small summary file here (project names, tokens and costs; no code or conversations) and reads the others. Blocks and the tray meter always show this PC.'),
+    ].filter(Boolean), 'Each PC writes one small summary file here (project names, tokens and costs; no code or conversations) and reads the others. Blocks and the tray meter always show this PC. The file is rewritten when Tokenscope refreshes; to keep it current while the app is closed, schedule "Tokenscope.exe --sync" in Windows Task Scheduler.'),
     list('Export', [
       row({ title: 'Daily usage', subtitle: 'The days in the current range and source filter.', trailing: exportButtons('daily') }),
       row({ title: 'Sessions', subtitle: 'The sessions in the current range and source filter.', trailing: exportButtons('sessions') }),

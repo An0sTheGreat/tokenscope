@@ -17,12 +17,20 @@ static class MachineSync
     static readonly string ConfigFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Tokenscope", "sync.json");
 
-    sealed record Config(string? Folder, string? Id);
+    // Machine and the three argument lists are the "recipe" the app last synced with, so a headless
+    // --sync run (Task Scheduler) writes the same snapshot the app would.
+    sealed record Config(string? Folder, string? Id, string? Machine = null, string[]? Main = null, string[]? Sessions = null, string[]? Projects = null);
 
     static Config Load()
     {
         try { return JsonSerializer.Deserialize<Config>(File.ReadAllText(ConfigFile)) ?? new(null, null); }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { return new(null, null); }
+    }
+
+    static void Save(Config config)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(ConfigFile)!);
+        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config));
     }
 
     // A random id per install names this PC's file, so two PCs with the same Windows name never
@@ -38,10 +46,70 @@ static class MachineSync
     public static string? LoadFolder() => Load().Folder;
 
     /// Throws when the setting cannot be stored; callers keep their previous folder in that case.
-    public static void SaveFolder(string? folder)
+    public static void SaveFolder(string? folder) => Save(Load() with { Folder = folder, Id = Id.Value });
+
+    /// Remembers what the app synced with. Argument lists that the policy rejects are ignored.
+    public static void SaveRecipe(string? machine, string[]? main, string[]? sessions, string[]? projects)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(ConfigFile)!);
-        File.WriteAllText(ConfigFile, JsonSerializer.Serialize(new Config(folder, Id.Value)));
+        static string[]? Allowed(string[]? args) => args is { Length: > 0 } && ArgPolicy.Validate(args) == null ? args : null;
+        if (Allowed(main) == null) return;
+        var name = string.Concat((machine ?? "").Where(c => !char.IsControl(c))).Trim();
+        var next = Load() with { Id = Id.Value, Machine = name.Length > 40 ? name[..40] : name, Main = main, Sessions = Allowed(sessions), Projects = Allowed(projects) };
+        try { Save(next); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }   // the next sync stores it
+    }
+
+    /// "Tokenscope.exe --sync": reads usage with the engine and writes this PC's snapshot to the
+    /// sync folder without opening the window. Exit code 0 = written, 1 = failed, 2 = sync is off.
+    public static async Task<int> RunHeadless()
+    {
+        var config = Load();
+        if (string.IsNullOrEmpty(config.Folder)) { return Report(2, "no sync folder is set (choose one in Settings, Machines)"); }
+        try
+        {
+            Engine.EnsureUnpacked();
+            using var limit = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            static string[]? Allowed(string[]? args) => args is { Length: > 0 } && ArgPolicy.Validate(args) == null ? args : null;
+            var main = Engine.RunAsync(Allowed(config.Main) ?? ["daily", "--sections", "daily,session", "--by-agent"], limit.Token);
+            var sessions = Engine.RunAsync(Allowed(config.Sessions) ?? ["claude", "session"], limit.Token);
+            var projects = Engine.RunAsync(Allowed(config.Projects) ?? ["claude", "daily", "--instances"], limit.Token);
+            await Task.WhenAll(main, sessions, projects);
+            if (!main.Result.ok) return Report(1, main.Result.payload);
+
+            var buffer = new System.Buffers.ArrayBufferWriter<byte>();
+            using (var w = new Utf8JsonWriter(buffer))
+            {
+                w.WriteStartObject();
+                w.WriteNumber("v", 1);
+                w.WriteString("machine", string.IsNullOrWhiteSpace(config.Machine) ? Environment.MachineName : config.Machine);
+                w.WriteNumber("savedAt", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+                w.WriteStartObject("raw");
+                w.WritePropertyName("main"); w.WriteRawValue(main.Result.payload, skipInputValidation: true);   // validated by ExtractJson
+                w.WritePropertyName("sessions");
+                if (sessions.Result.ok) w.WriteRawValue(sessions.Result.payload, skipInputValidation: true); else w.WriteNullValue();
+                w.WritePropertyName("projects");
+                if (projects.Result.ok) w.WriteRawValue(projects.Result.payload, skipInputValidation: true); else w.WriteRawValue("{\"projects\":{}}");
+                w.WriteEndObject();
+                w.WriteEndObject();
+            }
+            var (ok, payload) = Exchange(config.Folder, Encoding.UTF8.GetString(buffer.WrittenSpan));
+            return ok ? Report(0, $"snapshot written to {config.Folder}") : Report(1, payload);
+        }
+        catch (Exception ex)   // unattended: every failure must end up in the log, never in a crash dialog
+        {
+            return Report(1, ex.GetType().Name + ": " + ex.Message);
+        }
+    }
+
+    /// The last headless run, for whoever wonders why a scheduled sync did nothing:
+    /// %LOCALAPPDATA%Tokenscopesync.log holds one line (time, exit code, what happened).
+    static int Report(int code, string message)
+    {
+        var line = $"{DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss zzz} exit {code}: {message}";
+        try { Directory.CreateDirectory(Path.GetDirectoryName(ConfigFile)!); File.WriteAllText(Path.Combine(Path.GetDirectoryName(ConfigFile)!, "sync.log"), line + Environment.NewLine); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        try { if (code != 0) Console.Error.WriteLine("sync: " + message); } catch (IOException) { }   // no console when scheduled
+        return code;
     }
 
     public static string InfoJson(string? folder) =>

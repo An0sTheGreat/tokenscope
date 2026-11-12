@@ -167,6 +167,12 @@ sealed class MainForm : Form
                     Reply(id, true, data: MachineSync.InfoJson(syncFolder));
                     break;
                 case "sync":
+                    // the app also says how it built the snapshot, so "Tokenscope.exe --sync" can repeat it unattended
+                    if (msg.TryGetProperty("recipe", out var recipe) && recipe.ValueKind == JsonValueKind.Object && recipe.TryGetProperty("args", out var recipeArgs) && recipeArgs.ValueKind == JsonValueKind.Object)
+                    {
+                        string[]? List(string name) => recipeArgs.TryGetProperty(name, out var a) && a.ValueKind == JsonValueKind.Array && a.EnumerateArray().All(x => x.ValueKind == JsonValueKind.String) ? a.Deserialize<string[]>() : null;
+                        MachineSync.SaveRecipe(Str(recipe, "machine"), List("main"), List("sessions"), List("projects"));
+                    }
                     var (folder, snapshot) = (syncFolder, Str(msg, "content"));
                     var (synced, others) = await Task.Run(() => MachineSync.Exchange(folder, snapshot));
                     if (synced) Reply(id, true, data: others); else Reply(id, false, error: others);

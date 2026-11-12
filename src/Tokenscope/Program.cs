@@ -15,6 +15,7 @@ static class Program
     static int Main(string[] args)
     {
         if (args is ["--selfcheck"]) return SelfCheck();
+        if (args is ["--sync"]) return MachineSync.RunHeadless().GetAwaiter().GetResult();   // no window: for Task Scheduler
 
         using var mutex = new Mutex(true, InstanceMutex, out bool first);
         using var activate = new EventWaitHandle(false, EventResetMode.AutoReset, ActivateEvent);
