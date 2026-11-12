@@ -55,7 +55,7 @@ Shortcuts: `1`–`6` switch screens, `R` refreshes.
 
 ## How it works
 
-Tokenscope is a front end. The numbers come from [ccusage](https://github.com/ccusage/ccusage) by ryoppippi, the open-source CLI that reads Claude Code and Codex logs and prices them. Tokenscope bundles the official `ccusage` 20.0.50 binary and runs it locally.
+Tokenscope is a front end. The numbers come from [ccusage](https://github.com/ccusage/ccusage) by ryoppippi, the open-source CLI (MIT) that reads Claude Code and Codex logs and prices them. Tokenscope bundles the official `ccusage` 20.0.50 binary and runs it locally.
 
 - **Host:** a .NET 10 WinForms window with WebView2, a tray icon, and a strict allow-list of the ccusage commands and flags it will run.
 - **UI:** plain ES modules with no framework, no build step and no dependencies.
@@ -71,6 +71,12 @@ python -m http.server 5173                            # then open /src/Tokenscop
 
 The browser preview reads synthetic data from `tests/fixtures/`; regenerate it with `node scripts/make-demo-fixtures.mjs`. Never commit real ccusage output: it contains your project names and costs.
 
+## Licence
+
+Tokenscope is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to use, modify and share for personal, hobby, research and other non-commercial purposes. Commercial use is not permitted; open an issue if you need a commercial licence.
+
+The bundled ccusage engine is separate software under the MIT licence, © ryoppippi ([notice](engine/LICENSE-ccusage)).
+
 ## Credits
 
-Tokenscope is an unofficial project and is not affiliated with Anthropic, OpenAI or the ccusage authors. ccusage is MIT licensed, © ryoppippi.
+Tokenscope is an unofficial project and is not affiliated with Anthropic, OpenAI or the ccusage authors.
