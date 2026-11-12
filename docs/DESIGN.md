@@ -113,7 +113,7 @@ The `--text-*` tokens are `font` shorthands: write `font: var(--text-footnote)`,
 | `--radius-xl` | Sheet top corners |
 | `--radius-pill` | Buttons, chips, badges, switches, progress |
 
-Fixed sizes (`--hairline`, `--size-row`, `--size-control`, `--size-tile`, `--size-icon`, `--size-dot`, `--size-line`, `--size-sidebar`, `--size-topbar`, `--size-pane-narrow`, `--size-content-max`, `--size-sheet-max`, `--size-tooltip-max` and the switch, grabber, focus and banner sizes) are listed with comments in `tokens.css`. Use `--size-row` as the minimum height of anything clickable in a list and `--size-control` for buttons and fields.
+Fixed sizes (`--hairline`, `--size-row`, `--size-control`, `--size-tile`, `--size-icon`, `--size-dot`, `--size-line`, `--size-sidebar`, `--size-topbar`, `--size-board-row`, `--size-pane-narrow`, `--size-content-max`, `--size-sheet-max`, `--size-tooltip-max` and the switch, grabber, focus and banner sizes) are listed with comments in `tokens.css`. Use `--size-row` as the minimum height of anything clickable in a list and `--size-control` for buttons and fields.
 
 ### Shadows, materials, layers
 
@@ -211,6 +211,11 @@ Conventions (from the `components.css` header): prefix `ts-`; parts are `ts-<com
   </div>
   …
 </article>
+```
+
+**`ts-board`**: a grid of cards the user can rearrange (Overview, below its fixed stat row). Four equal columns, equal rows of `--size-board-row`, dense flow. Each `ts-board-item` holds one card and takes its span from the knobs `--w` (1–4 columns) and `--h` (rows), which `overview.js` sets from the saved layout (`settings.overviewLayout`, validated by `boardLayout()` in `shape.js`). The card fills its item and scrolls inside if its content does not fit, so every card stays on the grid whatever its place or size. `ts-board--editing` makes items draggable, outlines them and shows a `ts-board-handle` resize corner; card contents are inert while editing. Narrow panes use two columns. To add a card to Overview, add it to `CARDS` and to the `cards` map in `overview.js`; size its chart from the item (see how the daily chart reads its room).
+```html
+<div class="ts-board"><div class="ts-board-item" style="--w: 2; --h: 2"><article class="ts-card">…</article></div>…</div>
 ```
 
 **`ts-grid`**: responsive card grid. Default: as many columns of at least 280 px as fit. Modifiers: `ts-grid--stats` (4-up stat row, 2-up when narrow), `ts-grid--split` (2:1 row, stacks when narrow), `ts-grid--halves` (1:1 row of equal-height cells, stacks when narrow; nest one inside a half to line up with the four `--stats` columns, as Overview does). Narrow = the nearest inline-size container (`ts-app-main`, `ts-sheet-body`) is under `--size-pane-narrow` (880 px; repeated literally in the `@container` query because a query cannot read `var()`).
@@ -433,7 +438,7 @@ Each recipe ends with: run `node --test "tests/*.test.mjs"` (must pass), then lo
 
 ### Screen layout patterns
 - **Stat row first.** A screen that summarises opens with `ts-grid ts-grid--stats` (four `stat()` cards). Everything below should sit on those four columns.
-- **Lower cards on the same columns.** Use `ts-grid--halves`, and nest a second `ts-grid--halves` inside one half for quarter-width cards. Overview does this: Recent sessions (half) above Activity and Active block (a quarter each), beside Models (half, full height). Do not use `ts-grid--split` under a stat row; its 2:1 columns do not line up with it.
+- **Lower cards on the same columns.** Use `ts-grid--halves`, and nest a second `ts-grid--halves` inside one half for quarter-width cards; or, where the user should be able to rearrange them, a `ts-board`, as Overview does (default: the daily chart full width, then Recent sessions over Activity and Active block, beside a tall Models card). Do not use `ts-grid--split` under a stat row; its 2:1 columns do not line up with it.
 - **Cards in a row share a height.** `--halves` and `--stats` stretch their cells, so a short card grows rather than leaving a gap beside a tall one. Put the card whose content can grow (a ranked list) in the cell that sets the height.
 - **Small cards carry small charts.** In a quarter-width card pass fewer points (Overview's heatmap shows 16 weeks) and drop legends (`legend: false`).
 - **The filter row** holds source chips, then PC chips (only when a second PC exists), then the range control. It wraps when narrow; do not add a third chip group.

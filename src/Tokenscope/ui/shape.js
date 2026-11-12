@@ -299,6 +299,23 @@ export function toCsv(rows, columns) {
     .join('\r\n');
 }
 
+// ---- board layout (Overview's movable cards) ----
+// The saved layout is a preference from localStorage: unknown ids are dropped, missing cards are
+// appended in their default order and spans outside the grid fall back to the default. Returns
+// fresh objects, so the caller may change them while the user drags.
+export function boardLayout(defaults, saved, maxRows = 6) {
+  const left = new Map(defaults.map(c => [c.id, c]));
+  const span = (v, max, fallback) => (Number.isInteger(v) && v >= 1 && v <= max ? v : fallback);
+  const out = [];
+  for (const c of Array.isArray(saved) ? saved : []) {
+    const d = left.get(c?.id);
+    if (!d) continue;
+    left.delete(d.id);
+    out.push({ id: d.id, w: span(c.w, 4, d.w), h: span(c.h, maxRows, d.h) });
+  }
+  return [...out, ...[...left.values()].map(c => ({ ...c }))];
+}
+
 // ---- machines (sync folder) ----
 // Each PC writes a snapshot {v, machine, savedAt, raw:{main, sessions, projects}} into the shared
 // folder. Snapshots from other PCs are untrusted files: shapeSnapshot accepts only the expected

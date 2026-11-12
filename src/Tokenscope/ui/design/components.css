@@ -254,6 +254,26 @@ body:has(> .ts-app) { overflow: hidden; }
   .ts-grid--split, .ts-grid--halves { grid-template-columns: minmax(0, 1fr); }
 }
 
+/* ── Board (ts-board) ────────────────────────────────────────────────────────
+   Purpose: a grid of cards the user can rearrange (Overview). Four equal columns and equal rows
+            (--size-board-row), dense flow, so cards stay aligned whatever their order or size.
+   Anatomy: .ts-board > .ts-board-item (knobs --w columns 1-4, --h rows; set by script) > one card
+            + span.ts-board-handle? (resize corner, only while editing)
+   States: .ts-board--editing (items are draggable and outlined, card contents are inert),
+           .ts-board-item[data-dragging]. Narrow: two columns; wider items are capped at two.
+   A card fills its item; content that does not fit scrolls inside the card. */
+.ts-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: var(--size-board-row); grid-auto-flow: row dense; gap: var(--space-4); }
+.ts-board-item { --w: 1; --h: 1; position: relative; grid-column: span var(--w); grid-row: span var(--h); min-inline-size: 0; }
+.ts-board-item > .ts-card { block-size: 100%; overflow: auto; }
+.ts-board--editing .ts-board-item { border-radius: var(--radius-lg); outline: var(--size-line) dashed var(--color-tint); outline-offset: var(--space-1); cursor: grab; }
+.ts-board--editing .ts-board-item > .ts-card { pointer-events: none; user-select: none; }
+.ts-board-item[data-dragging] { opacity: var(--opacity-dimmed); }
+.ts-board-handle { position: absolute; inset-block-end: 0; inset-inline-end: 0; inline-size: var(--size-tile); block-size: var(--size-tile); border-radius: var(--radius-sm) 0 var(--radius-lg) 0; background: var(--color-tint-fill); cursor: nwse-resize; touch-action: none; }
+@container (inline-size < 880px) {
+  .ts-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ts-board-item { grid-column: span min(var(--w), 2); }
+}
+
 /* ── List ────────────────────────────────────────────────────────────────────
    Purpose: an inset grouped list (Settings sections, recent sessions). On the grouped
    background it is its own rounded surface; inside a .ts-card it bleeds to the card edges.

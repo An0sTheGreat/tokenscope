@@ -16,7 +16,7 @@ import * as machines from './views/machines.js';
 import * as settingsView from './views/settings.js';
 
 const VIEWS = [overview, reports, sessions, blocks, projects, machines, settingsView];
-const DEFAULTS = { theme: 'system', timezone: '', costMode: 'auto', offline: false, weekStart: 'sunday', tokenLimit: '', refreshSec: 60, closeToTray: true, machineName: '' };
+const DEFAULTS = { theme: 'system', timezone: '', costMode: 'auto', offline: false, weekStart: 'sunday', tokenLimit: '', refreshSec: 60, closeToTray: true, machineName: '', overviewLayout: null };
 const ENGINE_KEYS = ['timezone', 'costMode', 'offline', 'tokenLimit'];
 const DOCS_URL = 'https://ccusage.com/guide/';
 

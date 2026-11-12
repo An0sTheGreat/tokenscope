@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   shapeMain, prettyProject, shapeBlocks, shapeProjects, filterDaily, filterSessions, aggregate, totals,
   periodStats, agentSeries, modelSplit, heatmapCells, projectTotals, recentSessions, trayText, toCsv,
-  shapeSnapshot, shapeMachines, mergeMachines, machineTotals,
+  shapeSnapshot, shapeMachines, mergeMachines, machineTotals, boardLayout,
 } from '../src/Tokenscope/ui/shape.js';
 
 const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
@@ -297,6 +297,19 @@ test('filterSessions: the range is compared in the given timezone, not in UTC', 
   assert.equal(filterSessions([s], { ...f, timeZone: 'America/New_York' }).length, 1);
   assert.equal(filterSessions([s], { ...f, timeZone: 'UTC' }).length, 0);
   assert.equal(filterSessions([s], f).length, 0, 'no timezone given: UTC day');
+});
+
+// ---- board layout ----
+
+test('boardLayout: saved order and spans win; junk is dropped, bad spans and missing cards fall back', () => {
+  const defaults = [{ id: 'a', w: 4, h: 3 }, { id: 'b', w: 2, h: 2 }, { id: 'c', w: 1, h: 2 }];
+  assert.deepEqual(boardLayout(defaults, null), defaults);
+  assert.notEqual(boardLayout(defaults, null)[0], defaults[0]);   // copies: dragging must not edit the defaults
+  const saved = [{ id: 'c', w: 3, h: 6 }, { id: 'gone', w: 1, h: 1 }, null, { id: 'a', w: 9, h: 0 }, { id: 'c', w: 1, h: 1 }, { id: 'b', w: 1.5, h: '2' }];
+  assert.deepEqual(boardLayout(defaults, saved), [{ id: 'c', w: 3, h: 6 }, { id: 'a', w: 4, h: 3 }, { id: 'b', w: 2, h: 2 }]);
+  assert.deepEqual(boardLayout(defaults, [{ id: 'b', w: 4, h: 7 }], 6).map(c => c.id), ['b', 'a', 'c']);
+  assert.equal(boardLayout(defaults, [{ id: 'b', w: 4, h: 7 }], 6)[0].h, 2);
+  assert.deepEqual(boardLayout(defaults, 'nonsense'), defaults);
 });
 
 // ---- machines ----

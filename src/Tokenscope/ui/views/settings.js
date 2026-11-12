@@ -11,7 +11,7 @@ export const icon = () => glyph('settings');
 export const filters = false;
 export const needsData = false;
 
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.2.0';
 const ENGINE_VERSION = '20.0.50';
 const REPO_URL = 'https://github.com/ccusage/ccusage';
 const LICENSE_URL = 'https://github.com/ccusage/ccusage/blob/main/LICENSE';

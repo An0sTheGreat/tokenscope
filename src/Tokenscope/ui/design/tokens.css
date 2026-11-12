@@ -110,6 +110,7 @@
   --size-progress: 8px;          /* progress track thickness */
   --size-dot: 8px;               /* legend / chip colour dot, chart hover dot radius */
   --size-sidebar: 260px;         /* sidebar width */
+  --size-board-row: 132px;       /* one row of a .ts-board; a card is 1 to 6 rows tall */
   --size-topbar: 52px;           /* compact top bar height (sticky offset for table headers) */
   --size-sheet-max: 720px;       /* max width of a sheet panel */
   --size-sheet-height: 85%;      /* max height of a sheet panel, of the content pane */
