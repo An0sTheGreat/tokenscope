@@ -12,6 +12,7 @@ const ICONS = {
   sessions: 'M4 5h16v11H10l-5 4v-4H4z',
   blocks: 'M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z M12 7v5l3 2',
   projects: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z',
+  machines: 'M4 5h16v11H4z M9 20h6 M12 16v4',
   settings: 'M4 7h9 M17 7h3 M4 17h3 M11 17h9 M15 5v4 M9 15v4',
   refresh: 'M20 12a8 8 0 1 1-2.4-5.7 M20 4v4h-4',
   chevron: 'M9 6l6 6-6 6',

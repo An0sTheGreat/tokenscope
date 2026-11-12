@@ -266,7 +266,7 @@ export function heatmapCells(daily, today, weeks, weekStart = 'sunday') {
 // Projects with no rows in range are left out.
 export function projectTotals(projects, { since = null, until = null } = {}) {
   const list = projects
-    .map(p => ({ key: p.key, name: p.name, daily: filterDaily(p.daily, { since, until }) }))
+    .map(p => ({ ...p, daily: filterDaily(p.daily, { since, until }) }))
     .filter(p => p.daily.length)
     .map(p => {
       const t = p.daily.reduce(add, zero());
@@ -297,4 +297,67 @@ export function toCsv(rows, columns) {
   return [columns.map(c => c.label), ...rows.map(r => columns.map(c => r[c.key]))]
     .map(line => line.map(csvField).join(','))
     .join('\r\n');
+}
+
+// ---- machines (sync folder) ----
+// Each PC writes a snapshot {v, machine, savedAt, raw:{main, sessions, projects}} into the shared
+// folder. Snapshots from other PCs are untrusted files: shapeSnapshot accepts only the expected
+// shape and everything inside goes through the same normalisation as local engine output.
+
+export const SNAPSHOT_VERSION = 1;
+const cleanName = v => String(v ?? '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 40);
+
+export function shapeSnapshot(snap) {
+  if (snap?.v !== SNAPSHOT_VERSION || typeof snap.raw?.main !== 'object' || snap.raw.main === null) return null;
+  try {
+    return {
+      name: cleanName(snap.machine) || 'Unnamed PC',
+      savedAt: Number.isFinite(snap.savedAt) ? snap.savedAt : null,
+      ...shapeMain(snap.raw.main, snap.raw.sessions),
+      projects: shapeProjects(snap.raw.projects),
+    };
+  } catch { return null; }   // a malformed file is skipped, never fatal
+}
+
+// local: {name, savedAt, daily, sessions, agents, unpriced, projects}. Names are made unique so a
+// name is a safe filter key; unreadable snapshots are dropped.
+export function shapeMachines(local, snapshots = []) {
+  const taken = new Set();
+  return [{ ...local, name: cleanName(local.name) || 'This PC', local: true }, ...snapshots.map(shapeSnapshot).filter(Boolean).map(m => ({ ...m, local: false }))]
+    .map(m => {
+      let name = m.name;
+      for (let n = 2; taken.has(name); n++) name = `${m.name} (${n})`;
+      taken.add(name);
+      return { ...m, name };
+    });
+}
+
+// One combined view model. Sessions and projects keep the machine they came from.
+export function mergeMachines(machines) {
+  const daily = [...Map.groupBy(machines.flatMap(m => m.daily), r => r.period)].map(([period, rows]) => ({
+    ...rows.reduce(add, zero()),
+    period,
+    models: mergeModels(rows.flatMap(r => r.models)),
+    agents: [...Map.groupBy(rows.flatMap(r => r.agents), a => a.agent)]
+      .map(([agent, list]) => ({ ...list.reduce(add, zero()), agent, models: mergeModels(list.flatMap(a => a.models)) }))
+      .sort((a, b) => cmp(a.agent, b.agent)),
+  })).sort(byPeriod);
+  return {
+    daily,
+    sessions: machines.flatMap(m => m.sessions.map(s => ({ ...s, machine: m.name }))).sort(byLastDesc),
+    agents: [...new Set(machines.flatMap(m => m.agents))].sort(),
+    unpriced: [...new Set(machines.flatMap(m => m.unpriced))].sort(),
+    projects: machines.flatMap(m => m.projects.map(p => ({ ...p, machine: m.name }))),
+  };
+}
+
+// Per-machine totals and a cost series over `labels` (ISO days) for the Machines screen.
+export function machineTotals(machines, labels = []) {
+  const list = machines.map(m => {
+    const costOn = new Map(m.daily.map(r => [r.period, r.cost]));
+    const t = m.daily.reduce(add, zero());
+    return { name: m.name, local: m.local, savedAt: m.savedAt, cost: t.cost, tokens: t.tokens, sessions: m.sessions.length, days: m.daily.length, values: labels.map(d => costOn.get(d) ?? 0) };
+  });
+  const all = list.reduce((s, m) => s + m.cost, 0);
+  return list.map(m => ({ ...m, share: all ? m.cost / all : 0 }));
 }

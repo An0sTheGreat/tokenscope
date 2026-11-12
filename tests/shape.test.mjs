@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   shapeMain, prettyProject, shapeBlocks, shapeProjects, filterDaily, filterSessions, aggregate, totals,
   periodStats, agentSeries, modelSplit, heatmapCells, projectTotals, recentSessions, trayText, toCsv,
+  shapeSnapshot, shapeMachines, mergeMachines, machineTotals,
 } from '../src/Tokenscope/ui/shape.js';
 
 const fixture = name => JSON.parse(readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8'));
@@ -296,4 +297,45 @@ test('filterSessions: the range is compared in the given timezone, not in UTC', 
   assert.equal(filterSessions([s], { ...f, timeZone: 'America/New_York' }).length, 1);
   assert.equal(filterSessions([s], { ...f, timeZone: 'UTC' }).length, 0);
   assert.equal(filterSessions([s], f).length, 0, 'no timezone given: UTC day');
+});
+
+// ---- machines ----
+
+test('shapeSnapshot: accepts the expected shape only; names are cleaned and capped', () => {
+  const snap = { v: 1, machine: '  Work\u0000-PC ' + 'x'.repeat(60), savedAt: 5, raw: { main: { daily: [rawDay('2026-01-01', { claude: 2 })], session: [] } } };
+  const m = shapeSnapshot(snap);
+  assert.equal(m.name.length, 40);
+  assert.ok(m.name.startsWith('Work-PC'));
+  assert.equal(m.savedAt, 5);
+  assert.equal(m.daily[0].cost, 2);
+  assert.deepEqual(m.projects, []);
+  for (const bad of [null, 'x', [], {}, { v: 2, raw: { main: {} } }, { v: 1 }, { v: 1, raw: { main: null } }, { v: 1, raw: { main: { daily: 'nope' } } }]) assert.equal(shapeSnapshot(bad), null);
+  assert.equal(shapeSnapshot({ v: 1, machine: 7, savedAt: 'x', raw: { main: {} } }).savedAt, null);
+});
+
+test('shapeMachines + mergeMachines: unique names, days summed per agent and model, rows tagged', () => {
+  const shaped = (spec, session) => shapeMain({ daily: Object.entries(spec).map(([p, c]) => rawDay(p, c)), session });
+  const sess = (id, last) => ({ period: id, agent: 'codex', totalCost: 1, metadata: { lastActivity: last }, modelBreakdowns: [] });
+  const local = { name: 'Home', savedAt: 1, ...shaped({ '2026-01-01': { claude: 1 }, '2026-01-02': { claude: 2, codex: 3 } }, [sess('a', '2026-01-02T00:00:00Z')]), projects: [{ key: 'K', name: 'k', daily: [] }] };
+  const snap = (machine, spec) => ({ v: 1, machine, savedAt: 9, raw: { main: { daily: Object.entries(spec).map(([p, c]) => rawDay(p, c)), session: [sess('b', '2026-01-03T00:00:00Z')] } } });
+  const machines = shapeMachines(local, [snap('Home', { '2026-01-02': { claude: 10 }, '2026-01-03': { codex: 5 } }), { junk: true }, snap('Home', {})]);
+  assert.deepEqual(machines.map(m => [m.name, m.local]), [['Home', true], ['Home (2)', false], ['Home (3)', false]]);
+
+  const all = mergeMachines(machines);
+  assert.deepEqual(all.daily.map(r => [r.period, r.cost]), [['2026-01-01', 1], ['2026-01-02', 15], ['2026-01-03', 5]]);
+  const day2 = all.daily[1];
+  assert.deepEqual(day2.agents.map(a => [a.agent, a.cost]), [['claude', 12], ['codex', 3]]);
+  assert.deepEqual(day2.models.map(m => [m.name, m.cost]), [['claude-model', 12], ['codex-model', 3]]);
+  assert.equal(day2.tokens, 1500);
+  assert.deepEqual(all.sessions.map(s => [s.id, s.machine]), [['b', 'Home (2)'], ['b', 'Home (3)'], ['a', 'Home']]);
+  assert.deepEqual(all.agents, ['claude', 'codex']);
+  assert.deepEqual(all.projects.map(p => [p.key, p.machine]), [['K', 'Home']]);
+  assert.deepEqual(filterDaily(all.daily, { agent: 'codex' }).map(r => r.cost), [3, 5]);
+
+  const one = mergeMachines([machines[0]]);
+  assert.deepEqual(one.daily.map(r => r.cost), local.daily.map(r => r.cost));
+
+  const t = machineTotals(machines.slice(0, 2), ['2026-01-02', '2026-01-03']);
+  assert.deepEqual(t.map(m => [m.name, m.cost, m.sessions, m.days, m.values]), [['Home', 6, 1, 2, [5, 0]], ['Home (2)', 15, 1, 2, [10, 5]]]);
+  assert.ok(Math.abs(t[0].share - 6 / 21) < 1e-9);
 });

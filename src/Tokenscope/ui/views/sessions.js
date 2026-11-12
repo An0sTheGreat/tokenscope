@@ -23,6 +23,7 @@ function openSession(s, agents) {
       row({ title: 'Last activity', trailing: stamp(s.last) }),
       row({ title: 'Tokens', subtitle: `in ${tokens(s.input)} · out ${tokens(s.output)} · cache write ${tokens(s.cacheWrite)} · cache read ${tokens(s.cacheRead)}`, trailing: tokens(s.tokens) }),
       row({ title: 'Session id', subtitle: s.id }),
+      row({ title: 'Machine', trailing: s.machine ?? '—' }),
     ]),
     h('p', { class: 'ts-list-header' }, 'Models'),
     modelList(s.models)));
@@ -31,11 +32,12 @@ function openSession(s, agents) {
 export function render(el, ctx, params) {
   const { vm, nowMs, actions } = ctx;
   const agents = vm.all.agents;
+  const multi = vm.all.machines.length > 1;   // more than one PC: say where each session ran
   const body = h('div', { class: 'ts-stack' });
   const count = h('span', { class: 'ts-badge', attrs: { role: 'status' } });
 
   const columns = [
-    { key: 'title', label: 'Session', clip: true, render: s => h('span', { class: 'ts-row-content' }, h('span', { class: 'ts-row-title' }, s.title), h('span', { class: 'ts-row-subtitle' }, shortId(s))) },
+    { key: 'title', label: 'Session', clip: true, render: s => h('span', { class: 'ts-row-content' }, h('span', { class: 'ts-row-title' }, s.title), h('span', { class: 'ts-row-subtitle' }, multi ? `${s.machine} · ${shortId(s)}` : shortId(s))) },
     { key: 'agent', label: 'Source', render: s => h('span', { class: 'ts-chip' }, h('span', { class: 'ts-chip-dot', attrs: { style: `--dot: ${agentColor(s.agent, agents)}` } }), agentLabel(s.agent)) },
     { key: 'last', label: 'Last activity', value: s => s.last ?? '', render: s => relative(s.last, nowMs) },
     { key: 'models', label: 'Models', value: s => s.models.length, render: s => (s.models.length > 1 ? `${s.models[0].name} +${s.models.length - 1}` : s.models[0]?.name ?? '—') },

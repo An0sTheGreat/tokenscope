@@ -4,7 +4,7 @@
 import { h, transition, openSheet, closeSheet } from './dom.js';
 import * as bridge from './bridge.js';
 import { engineArgs } from './args.js';
-import { shapeMain, shapeBlocks, shapeProjects, filterDaily, filterSessions, projectTotals, trayText, toCsv } from './shape.js';
+import { shapeMain, shapeBlocks, shapeProjects, shapeMachines, mergeMachines, SNAPSHOT_VERSION, filterDaily, filterSessions, projectTotals, trayText, toCsv } from './shape.js';
 import { relative } from './format.js';
 import { icon, agentLabel, agentColor, segmented, chip, empty, toolbar, addDays, RANGES, rangeLabel } from './kit.js';
 import * as overview from './views/overview.js';
@@ -12,10 +12,11 @@ import * as reports from './views/reports.js';
 import * as sessions from './views/sessions.js';
 import * as blocks from './views/blocks.js';
 import * as projects from './views/projects.js';
+import * as machines from './views/machines.js';
 import * as settingsView from './views/settings.js';
 
-const VIEWS = [overview, reports, sessions, blocks, projects, settingsView];
-const DEFAULTS = { theme: 'system', timezone: '', costMode: 'auto', offline: false, weekStart: 'sunday', tokenLimit: '', refreshSec: 60, closeToTray: true };
+const VIEWS = [overview, reports, sessions, blocks, projects, machines, settingsView];
+const DEFAULTS = { theme: 'system', timezone: '', costMode: 'auto', offline: false, weekStart: 'sunday', tokenLimit: '', refreshSec: 60, closeToTray: true, machineName: '' };
 const ENGINE_KEYS = ['timezone', 'costMode', 'offline', 'tokenLimit'];
 const DOCS_URL = 'https://ccusage.com/guide/';
 
@@ -29,9 +30,12 @@ const persist = (key, value) => {
 };
 
 const settings = { ...DEFAULTS, ...load('tokenscope.settings', {}) };
-const filter = { agent: 'all', preset: '30d', since: null, until: null, ...load('tokenscope.filter', {}) };
+const filter = { agent: 'all', machine: 'all', preset: '30d', since: null, until: null, ...load('tokenscope.filter', {}) };
 let raw = null;          // last good engine payloads {main, sessions, blocks, projects}
-let all = null;          // shaped, unfiltered view models
+let all = null;          // shaped, unfiltered view models (merged over the machines the filter selects)
+let sync = { folder: null, machine: '' };   // host state: the sync folder (null = off) and this PC's Windows name
+let remote = [];         // other PCs' snapshots from the sync folder, as read (untrusted)
+let syncError = null;
 let error = null;
 let errorPartial = false;   // main data is fresh; only blocks or projects failed
 let renderFailed = false;   // the error on screen is a display failure, cleared by the next good render
@@ -66,8 +70,14 @@ function range() {
   }
 }
 
+const localName = () => settings.machineName || sync.machine || 'This PC';
+
+// Blocks and the tray always describe this PC: another PC's snapshot is only as fresh as its last refresh.
 function shape() {
-  all = { ...shapeMain(raw.main, raw.sessions), ...shapeBlocks(raw.blocks, Date.now()), projects: shapeProjects(raw.projects) };
+  const local = { name: localName(), savedAt: updatedAt, ...shapeMain(raw.main, raw.sessions), projects: shapeProjects(raw.projects) };
+  const list = shapeMachines(local, sync.folder ? remote : []);
+  const machine = list.some(m => m.name === filter.machine) ? filter.machine : 'all';   // a PC that is gone falls back to all
+  all = { ...mergeMachines(list.filter(m => machine === 'all' || m.name === machine)), ...shapeBlocks(raw.blocks, Date.now()), machines: list, machine };
   if (filter.agent !== 'all' && !all.agents.includes(filter.agent)) filter.agent = 'all';
 }
 
@@ -79,8 +89,11 @@ function ctx(animate = false) {
     vm: all && {
       daily: filterDaily(all.daily, f), sessions: filterSessions(all.sessions, { ...f, timeZone }), agents: all.agents, unpriced: all.unpriced,
       blocks: all.blocks, active: all.active, projects: projectTotals(all.projects, r), all,
+      // every PC, whatever the machine filter says: the Machines screen makes its own selection
+      machines: all.machines.map(m => ({ ...m, daily: filterDaily(m.daily, f), sessions: filterSessions(m.sessions, { ...f, timeZone }) })),
     },
-    filter: { ...filter, ...r }, settings, today: today(), nowMs: Date.now(),
+    sync: { ...sync, error: syncError },
+    filter: { ...filter, machine: all?.machine ?? 'all', ...r }, settings, today: today(), nowMs: Date.now(),
     status: { loading, error, updatedAt }, animate, actions,
   };
 }
@@ -94,7 +107,6 @@ async function loadAll() {
   const key = settingsKey();
   const a = engineArgs(settings);
   const [main, sess, blk, proj] = await Promise.allSettled([bridge.run(a.main), bridge.run(a.sessions), bridge.run(a.blocks), bridge.run(a.projects)]);
-  loading = false;
   const first = !all;
   if (main.status === 'fulfilled') {
     raw = {
@@ -107,6 +119,8 @@ async function loadAll() {
     error = failed ? messageOf(failed.reason) : null;
     errorPartial = !!failed;
     updatedAt = Date.now();
+    await syncReady;
+    await exchange(true);
     shape();
     pushTray();
   } else {
@@ -118,6 +132,7 @@ async function loadAll() {
       pushTray();
     }
   }
+  loading = false;
   // Cache only what rendered: a payload that breaks a view must never be shown again at start-up.
   if (safeRender(first) && main.status === 'fulfilled') persist('tokenscope.cache', { key, savedAt: updatedAt, raw });
   if (key !== settingsKey()) loadAll();   // a setting changed while loading
@@ -138,6 +153,26 @@ async function loadBlocks() {
   } catch { /* the next tick or a manual refresh retries; the last block stays on screen */ }
   loadingBlocks = false;
   paintStatus();
+}
+
+// Writes this PC's snapshot (when asked and there is data) and reads the others. A sync failure never
+// blocks local data: it is reported in Settings and the last snapshots read stay in use.
+async function exchange(write) {
+  if (!sync.folder) { remote = []; syncError = null; return; }
+  try {
+    const content = write && raw ? JSON.stringify({ v: SNAPSHOT_VERSION, machine: localName(), savedAt: updatedAt, raw: { main: raw.main, sessions: raw.sessions, projects: raw.projects } }) : null;
+    const got = await bridge.sync(content);
+    remote = Array.isArray(got) ? got : [];
+    syncError = null;
+  } catch (e) { syncError = messageOf(e); }
+}
+
+// After the folder, this PC's name or the snapshots changed: re-merge and repaint.
+async function resync(info) {
+  if (info) sync = info;
+  await exchange(true);
+  if (raw) shape();
+  safeRender(false);
 }
 
 const messageOf = e => String(e?.message ?? e ?? 'Unknown error').slice(0, 2000);
@@ -163,15 +198,18 @@ const actions = {
     if (key === 'theme') applyTheme();
     if (key === 'theme' || key === 'closeToTray') pushTray();
     if (key === 'refreshSec') restartTimer();
+    if (key === 'machineName') resync();
     if (ENGINE_KEYS.includes(key)) { useCache(); loadAll(); }
   },
   refresh: () => loadAll(),
+  pickSyncFolder: async () => resync(await bridge.syncPick()),
+  syncOff: async () => resync(await bridge.syncOff()),
   exportData(what, format) {
     const c = ctx();
     if (!c.vm) return Promise.resolve({ ok: false });
     const usage = r => ({ input: r.input, output: r.output, cacheWrite: r.cacheWrite, cacheRead: r.cacheRead, tokens: r.tokens, cost: r.cost });
     const rows = what === 'sessions'
-      ? c.vm.sessions.map(s => ({ session: s.id, project: s.projectKey ?? '', agent: s.agent, lastActivity: s.last ?? '', ...usage(s) }))
+      ? c.vm.sessions.map(s => ({ session: s.id, project: s.projectKey ?? '', agent: s.agent, machine: s.machine, lastActivity: s.last ?? '', ...usage(s) }))
       : c.vm.daily.map(r => ({ date: r.period, agents: r.agents.map(a => a.agent).join(' '), models: r.models.map(m => m.name).join(' '), ...usage(r) }));
     const columns = Object.keys(rows[0] ?? {}).map(key => ({ key, label: key }));
     const content = format === 'json' ? JSON.stringify(rows, null, 2) : toCsv(rows, columns);
@@ -183,6 +221,7 @@ const actions = {
 function applyFilter(patch, rebuildBar) {
   Object.assign(filter, patch);
   persist('tokenscope.filter', filter);
+  if ('machine' in patch && raw) shape();
   const c = ctx(true);
   if (rebuildBar) $('filterbar')?.replaceWith(filterBar(c));
   if (viewRoot?.isConnected) currentView().render(viewRoot, c, null);
@@ -260,6 +299,22 @@ function filterBar(c) {
     });
     return el;
   });
+  const pcs = c.vm.all.machines;
+  const pcChips = [['all', 'All PCs'], ...pcs.map(m => [m.name, m.name])].map(([value, label]) => {
+    const el = chip({
+      label, pressed: c.filter.machine === value,
+      onClick: () => {
+        pcChips.forEach(x => x.setAttribute('aria-pressed', String(x === el)));
+        applyFilter({ machine: value }, false);
+      },
+    });
+    return el;
+  });
+  const view = currentView();
+  const leading = [
+    agents.length > 1 && view.agentFilter !== false ? h('span', { class: 'ts-toolbar-group' }, chips) : null,
+    pcs.length > 1 && view.machineFilter !== false ? h('span', { class: 'ts-toolbar-group' }, pcChips) : null,
+  ].filter(Boolean);
   const custom = h('button', { class: `ts-button ${filter.preset === 'custom' ? 'ts-button--tinted' : 'ts-button--plain'}`, attrs: { type: 'button' }, onclick: () => customRange(c) },
     icon('calendar'), filter.preset === 'custom' ? rangeLabel(c.filter) : 'Custom');
   const presets = segmented({
@@ -270,7 +325,7 @@ function filterBar(c) {
       if (rebuild) $('filterbar')?.querySelector('input:checked')?.focus();
     },
   });
-  const bar = toolbar(agents.length > 1 && currentView().agentFilter !== false ? chips : null, [presets, custom]);
+  const bar = toolbar(leading, [presets, custom]);
   bar.id = 'filterbar';
   return bar;
 }
@@ -360,6 +415,16 @@ addEventListener('keydown', e => {
   else if (e.key === 'r' || e.key === 'R') actions.refresh();
 });
 bridge.onRefresh(actions.refresh);
+
+// Machine sync starts in parallel with the first engine load, which waits on it before merging.
+const syncReady = (async () => {
+  try {
+    sync = await bridge.syncInfo();
+    if (!sync.folder) return;
+    await exchange(false);
+    if (raw) { shape(); safeRender(false); }
+  } catch (e) { syncError = messageOf(e); }
+})();
 
 applyTheme();
 buildNav();

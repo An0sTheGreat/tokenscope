@@ -38,6 +38,7 @@ sealed class MainForm : Form
     bool closeToTray = true;
     bool quitting;
     string theme = "system";
+    string? syncFolder = MachineSync.LoadFolder();   // null: machine sync is off
 
     public MainForm()
     {
@@ -120,6 +121,7 @@ sealed class MainForm : Form
     }
 
     // Bridge: page posts {id, type, ...}; host replies {id, ok, data?, error?, path?}. Every request gets a reply.
+    // Types: run, save, tray, openExternal, and machine sync (syncInfo, syncPick, syncOff, sync; see Sync.cs).
     async void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
         JsonElement id = default;
@@ -147,6 +149,27 @@ sealed class MainForm : Form
                         closeToTray = c.GetBoolean();
                     if (Str(msg, "theme") is "light" or "dark" or "system") { theme = Str(msg, "theme")!; ApplyTheme(); }
                     Reply(id, true);
+                    break;
+                case "syncInfo":
+                    Reply(id, true, data: MachineSync.InfoJson(syncFolder));
+                    break;
+                case "syncPick":
+                    using (var pick = new FolderBrowserDialog
+                    {
+                        Description = "Choose the folder Tokenscope syncs through, for example one inside Google Drive",
+                        UseDescriptionForTitle = true, InitialDirectory = syncFolder ?? "",
+                    })
+                        if (pick.ShowDialog(this) == DialogResult.OK) MachineSync.SaveFolder(syncFolder = pick.SelectedPath);
+                    Reply(id, true, data: MachineSync.InfoJson(syncFolder));
+                    break;
+                case "syncOff":
+                    MachineSync.SaveFolder(syncFolder = null);
+                    Reply(id, true, data: MachineSync.InfoJson(syncFolder));
+                    break;
+                case "sync":
+                    var (folder, snapshot) = (syncFolder, Str(msg, "content"));
+                    var (synced, others) = await Task.Run(() => MachineSync.Exchange(folder, snapshot));
+                    if (synced) Reply(id, true, data: others); else Reply(id, false, error: others);
                     break;
                 case "openExternal":
                     if (Uri.TryCreate(Str(msg, "url"), UriKind.Absolute, out var url) && url.Scheme == Uri.UriSchemeHttps)

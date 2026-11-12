@@ -6,7 +6,7 @@ Tokenscope is a Windows desktop dashboard for Claude Code and Codex usage. It re
 
 ![Tokenscope overview in dark mode](docs/screenshots/overview-dark.png)
 
-No account. No API key. No telemetry. Your usage data never leaves your machine.
+No account. No API key. No telemetry. Your usage data stays on your machine unless you choose a sync folder to combine your PCs.
 
 ## Why you'll keep it open
 
@@ -15,6 +15,7 @@ No account. No API key. No telemetry. Your usage data never leaves your machine.
 - **Watch the 5-hour block live.** Burn rate, projected cost at block end, time left, and an optional token-limit bar.
 - **Glance at the tray.** Close the window and the meter keeps running; hover the icon for the active block's cost.
 - **Slice it your way.** Filter by agent and date range instantly, with no reload. Group reports by day, week or month, in cost or tokens.
+- **Combine your PCs.** Point each PC at a folder they share (Google Drive, OneDrive, Dropbox) and see home and work in one view, or one machine at a time. No server involved: each PC drops a small summary file there, with project names and costs but no code or conversations.
 - **Take the numbers with you.** Export daily usage or sessions as CSV or JSON.
 - **Light and dark.** Follows the Windows theme, or pick one.
 
@@ -51,7 +52,7 @@ dist/Tokenscope.exe
 
 `build.ps1` downloads the pinned ccusage engine, runs the tests, publishes a single `Tokenscope.exe` and checks that it starts. Add `-Standalone` to bundle the .NET runtime, as the release download does.
 
-Shortcuts: `1`–`6` switch screens, `R` refreshes.
+Shortcuts: `1`–`7` switch screens, `R` refreshes.
 
 ## How it works
 

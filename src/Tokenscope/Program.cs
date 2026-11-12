@@ -99,6 +99,7 @@ static class Program
             var got = Engine.ExtractJson(input);
             if (got != expected) return Fail($"ExtractJson({input}) = {got ?? "null"}, expected {expected ?? "null"}");
         }
+        if (MachineSync.SelfCheck() is { } syncFailure) return Fail("machine sync: " + syncFailure);
         return 0;
     }
 

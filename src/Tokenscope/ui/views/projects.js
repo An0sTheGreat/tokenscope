@@ -40,12 +40,13 @@ export function render(el, ctx) {
     return;
   }
   const rankEl = h('div');
+  const multi = vm.all.machines.length > 1;   // the same project on two PCs is two rows: say which
   el.replaceChildren(
     card({ title: `Top projects · ${rangeLabel(filter)}`, enter: animate }, rankEl),
     h('div', null, list(`${vm.projects.length} project${vm.projects.length === 1 ? '' : 's'}`, vm.projects.map((p, i) => row({
       glyph: 'projects', tile: seriesColor(i), title: p.name,
-      subtitle: `${pct(p.share)} · ${tokens(p.tokens)} tokens · ${tail(p.key)}`,
+      subtitle: `${pct(p.share)} · ${tokens(p.tokens)} tokens · ${multi ? `${p.machine} · ` : ''}${tail(p.key)}`,
       trailing: money(p.cost), onClick: () => openProject(p, ctx),
     })), 'Claude Code only. Names are shortened from the project folder.')));
-  rankBars(rankEl, vm.projects.map((p, i) => ({ label: p.name, value: p.cost, share: p.share, color: seriesColor(i), badge: null })), { format: money });
+  rankBars(rankEl, vm.projects.map((p, i) => ({ label: multi ? `${p.name} · ${p.machine}` : p.name, value: p.cost, share: p.share, color: seriesColor(i), badge: null })), { format: money });
 }

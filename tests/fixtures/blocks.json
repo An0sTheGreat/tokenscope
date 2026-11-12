@@ -5096,11 +5096,11 @@
    "totalTokens": 0
   },
   {
-   "actualEndTime": "2026-11-12T13:48:47.000Z",
+   "actualEndTime": "2026-11-12T12:34:05.000Z",
    "burnRate": {
-    "costPerHour": 8.394197393663068,
-    "tokensPerMinute": 224987.51312979741,
-    "tokensPerMinuteForIndicator": 1511.1225255381773
+    "costPerHour": 11.323180867263526,
+    "tokensPerMinute": 303492.30362008564,
+    "tokensPerMinuteForIndicator": 2038.3978201634877
    },
    "costUSD": 40.4017384,
    "endTime": "2026-11-12T14:00:00.000Z",
@@ -5114,9 +5114,9 @@
     "claude-sonnet-5-5"
    ],
    "projection": {
-    "remainingMinutes": 1,
-    "totalCost": 40.54,
-    "totalTokens": 65197632
+    "remainingMinutes": 76,
+    "totalCost": 54.74,
+    "totalTokens": 88038059
    },
    "startTime": "2026-11-12T09:00:00.000Z",
    "tokenCounts": {

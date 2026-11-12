@@ -275,7 +275,7 @@ export function rankBars(el, items, { format }) {
 }
 
 // today: 'YYYY-MM-DD' in the user's timezone (cells after it are not drawn); defaults to the PC date.
-export function heatmap(el, cells, { format, today = isoDay(new Date()) }) {
+export function heatmap(el, cells, { format, today = isoDay(new Date()), legend = true }) {
   const weeks = Math.ceil(cells.length / 7);
   mount(el, (W, fresh) => {
     if (!cells.length) return el.replaceChildren(emptyState());
@@ -314,7 +314,7 @@ export function heatmap(el, cells, { format, today = isoDay(new Date()) }) {
       svg('svg', { viewBox: '0 0 76 12', width: 76, height: 12 },
         [0, 1, 2, 3, 4].map(l => svg('rect', { class: 'ts-chart-cell', 'data-level': l, x: l * 16, width: 12, height: 12, rx: 3 }))),
       'More');
-    el.replaceChildren(root, scale);
+    el.replaceChildren(root, legend ? scale : '');
   });
 }
 

@@ -1,5 +1,5 @@
 // Overview: the at-a-glance screen. Period stats, daily cost by agent, recent sessions, the active
-// block, a 26-week activity heatmap and the model split.
+// block, a 16-week activity heatmap and the model split.
 
 import { h, stagger } from '../dom.js';
 import { money, tokens, relative, duration } from '../format.js';
@@ -74,9 +74,11 @@ export function render(el, ctx) {
       title: 'No usage in this range', text: 'Try a longer range or another source.',
       action: { label: 'Reset filters', onClick: () => actions.setFilter({ agent: 'all', preset: 'all' }) },
     })),
-    h('div', { class: 'ts-grid ts-grid--split' }, sessionsCard, activeCard(ctx, animate)),
-    h('div', { class: 'ts-grid ts-grid--split' },
-      card({ title: 'Activity · last 26 weeks', enter: animate }, heatEl),
+    // Two halves on the stat row's columns: sessions over activity + block, beside the model split.
+    h('div', { class: 'ts-grid ts-grid--halves' },
+      h('div', { class: 'ts-stack' },
+        sessionsCard,
+        h('div', { class: 'ts-grid ts-grid--halves' }, card({ title: 'Activity · 16 weeks', enter: animate }, heatEl), activeCard(ctx, animate))),
       card({ title: 'Models', enter: animate }, rankEl)),
   ].filter(Boolean));
 
@@ -87,7 +89,7 @@ export function render(el, ctx) {
       series: s.series.map(x => ({ name: agentLabel(x.agent), color: agentColor(x.agent, agents), values: x.values })),
     });
   }
-  heatmap(heatEl, heatmapCells(scope, today, 26, settings.weekStart), { format: money, today });
+  heatmap(heatEl, heatmapCells(scope, today, 16, settings.weekStart), { format: money, today, legend: false });
   rankBars(rankEl, modelSplit(vm.daily).map((m, i) => ({
     label: m.name, value: m.cost, share: m.share, color: seriesColor(i), badge: m.unpriced ? 'Unpriced' : null,
   })), { format: money });

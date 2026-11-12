@@ -213,7 +213,7 @@ Conventions (from the `components.css` header): prefix `ts-`; parts are `ts-<com
 </article>
 ```
 
-**`ts-grid`**: responsive card grid. Default: as many columns of at least 280 px as fit. Modifiers: `ts-grid--stats` (4-up stat row, 2-up when narrow), `ts-grid--split` (2:1 row, stacks when narrow). Narrow = the nearest inline-size container (`ts-app-main`, `ts-sheet-body`) is under `--size-pane-narrow` (880 px; repeated literally in the `@container` query because a query cannot read `var()`).
+**`ts-grid`**: responsive card grid. Default: as many columns of at least 280 px as fit. Modifiers: `ts-grid--stats` (4-up stat row, 2-up when narrow), `ts-grid--split` (2:1 row, stacks when narrow), `ts-grid--halves` (1:1 row of equal-height cells, stacks when narrow; nest one inside a half to line up with the four `--stats` columns, as Overview does). Narrow = the nearest inline-size container (`ts-app-main`, `ts-sheet-body`) is under `--size-pane-narrow` (880 px; repeated literally in the `@container` query because a query cannot read `var()`).
 ```html
 <div class="ts-grid ts-grid--stats"><article class="ts-card ts-stat">…</article>…×4</div>
 <div class="ts-grid ts-grid--split"><section class="ts-card">…</section><a class="ts-card">…</a></div>
@@ -472,7 +472,7 @@ shape.js          pure: engine JSON → view models (all engine data goes throug
 format.js         pure: money, tokens, duration, relative, pct
 dom.js            h(), svg(), openSheet/closeSheet, tooltip, countUp, stagger, chunked, transition
 charts.js         stackedBars, lineChart, sparkline, rankBars, heatmap, blockTimeline
-views/<id>.js     overview, reports, sessions, blocks, projects, settings
+views/<id>.js     overview, reports, sessions, blocks, projects, machines, settings
 design/           tokens.css, components.css, gallery.html
 ```
 
@@ -517,26 +517,33 @@ blockTimeline(el, blocks, nowMs, {hours, format})
 
 // bridge.js (app.js only; never from views)
 hosted; run(args); save(name, content); setTray(text, closeToTray, theme); openExternal(url); onRefresh(fn)
+syncInfo(); syncPick(); syncOff()   // -> {folder | null, machine}; the host owns the folder path
+sync(snapshotJson | null)           // writes this PC's snapshot, resolves to the other PCs' (untrusted)
 
 // views/<id>.js
 export const id, title, tile; export const icon = () => svgElement;
 export function render(el, ctx, params);
-// optional: renderLive(el, ctx), reset(), filters = false, agentFilter = false, needsData = false
+// optional: renderLive(el, ctx), reset(), filters = false, agentFilter = false, machineFilter = false, needsData = false
 
 // ctx passed to every view
-{ vm:{daily, sessions, agents, unpriced, blocks, active, projects, all},   // filtered; vm.all = unfiltered
-  filter:{agent, preset, since, until}, settings, today, nowMs,
+{ vm:{daily, sessions, agents, unpriced, blocks, active, projects, all,    // filtered; vm.all = unfiltered
+      machines},   // every PC [{name, local, savedAt, daily, sessions, …}], range- and source-filtered, ignoring the PC filter
+  filter:{agent, machine, preset, since, until}, settings, today, nowMs,
+  sync:{folder, machine, error},   // machine sync state for Settings and Machines
   status:{loading, error, updatedAt}, animate,
   actions:{navigate(id, params), setFilter(patch), setSetting(key, value), refresh(),
-           exportData(what /*'daily'|'sessions'*/, format /*'csv'|'json'*/), openExternal(url)} }
+           exportData(what /*'daily'|'sessions'*/, format /*'csv'|'json'*/), openExternal(url),
+           pickSyncFolder(), syncOff()} }
 
 // settings defaults (localStorage 'tokenscope.settings')
 {theme:'system', timezone:'', costMode:'auto', offline:false, weekStart:'sunday',
- tokenLimit:'', refreshSec:60, closeToTray:true}
+ tokenLimit:'', refreshSec:60, closeToTray:true, machineName:''}
 ```
 
-`shape.js` (pure): `shapeMain`, `prettyProject`, `shapeBlocks`, `shapeProjects`, `filterDaily`, `filterSessions` (takes `timeZone`), `aggregate`, `totals`, `periodStats`, `agentSeries`, `modelSplit`, `heatmapCells`, `projectTotals`, `recentSessions`, `trayText`, `toCsv`. Types: `Usage = {input, output, cacheWrite, cacheRead, tokens, cost}`, plus `Row`, `Session`, `Block` built on it (see the head of `shape.js`). `format.js`: `money`, `tokens`, `duration`, `relative`, `pct`.
+`shape.js` (pure): `shapeMain`, `prettyProject`, `shapeBlocks`, `shapeProjects`, `filterDaily`, `filterSessions` (takes `timeZone`), `aggregate`, `totals`, `periodStats`, `agentSeries`, `modelSplit`, `heatmapCells`, `projectTotals`, `recentSessions`, `trayText`, `toCsv`, and for machine sync `shapeSnapshot`, `shapeMachines`, `mergeMachines`, `machineTotals`. Types: `Usage = {input, output, cacheWrite, cacheRead, tokens, cost}`, plus `Row`, `Session`, `Block` built on it (see the head of `shape.js`). `format.js`: `money`, `tokens`, `duration`, `relative`, `pct`.
 
 ### How data reaches a view
+
+With a sync folder set (Settings → Machines), each refresh also writes this PC's snapshot `{v, machine, savedAt, raw}` to `<folder>/<PC name>.tokenscope.json` and reads the other PCs' files. `shapeMachines` validates them (they are untrusted input) and `mergeMachines` builds `all` from the PCs the machine filter selects, so every screen works on merged data unchanged. Sessions and projects carry a `machine` field. Blocks and the tray stay local. `all.machines` is the full per-PC list; the Machines screen reads it through `ctx.vm.machines` and makes its own selection (`machineFilter = false` hides the shared PC chips there).
 
 `app.js` runs four engine calls (`args.js`), shapes them once (`shape.js`) into `all`, and builds `ctx.vm` by applying the source filter and date range in the UI, so filter changes never call the engine. The last good payloads are cached in localStorage (key `tokenscope.cache`, versioned by `CACHE_VERSION` in `app.js`: bump it when payload or view-model shapes change) and shown at start-up while a fresh load runs. Every `settings.refreshSec` seconds only the blocks call re-runs and the current view's `renderLive` is called.

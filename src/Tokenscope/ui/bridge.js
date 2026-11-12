@@ -83,3 +83,30 @@ export function openExternal(url) {
   if (hosted) request('openExternal', { url });
   else globalThis.open(url, '_blank', 'noopener');
 }
+
+// ---- machine sync (see Sync.cs) ----
+// The host owns the folder: the page can ask for a folder dialog but never names a path.
+// Info is {folder: string | null, machine: this PC's Windows name}. Outside the host sync is off,
+// except with ?mock=machines, which invents a second PC from the fixtures.
+
+const DEMO_FOLDER = 'G:\My Drive\Tokenscope';
+const syncInfoOf = reply => (reply?.ok && reply.data ? reply.data : { folder: null, machine: '' });
+const demoInfo = () => ({ folder: mock === 'machines' ? DEMO_FOLDER : null, machine: 'Home-PC' });
+
+export async function syncInfo() { return hosted ? syncInfoOf(await request('syncInfo')) : demoInfo(); }
+export async function syncPick() { return hosted ? syncInfoOf(await request('syncPick')) : demoInfo(); }
+export async function syncOff() { return hosted ? syncInfoOf(await request('syncOff')) : { ...demoInfo(), folder: null }; }
+
+// content: this PC's snapshot as a JSON string, or null to only read. Resolves to the other PCs'
+// snapshots (untrusted: shape.js validates them).
+export async function sync(content) {
+  if (hosted) {
+    const reply = await request('sync', { content });
+    if (!reply.ok) throw new Error(reply.error || 'sync failed');
+    return reply.data;
+  }
+  if (mock !== 'machines') return [];
+  const [main, sessions, projects] = await Promise.all(['main.json', 'claude-sessions.json', 'projects.json'].map(f => fetch(`/tests/fixtures/${f}`).then(r => r.json())));
+  const some = (xs, n) => xs.filter((_, i) => i % n === 0);
+  return [{ v: 1, machine: 'Work-PC', savedAt: Date.now() - 26 * 36e5, raw: { main: { ...main, daily: some(main.daily, 2), session: some(main.session, 3) }, sessions, projects: { projects: Object.fromEntries(some(Object.entries(projects.projects), 2)) } } }];
+}

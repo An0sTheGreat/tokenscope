@@ -235,7 +235,9 @@ body:has(> .ts-app) { overflow: hidden; }
 /* ── Grid (ts-grid) ──────────────────────────────────────────────────────────
    Purpose: responsive card grid inside .ts-app-content or a sheet body.
    Default: as many columns of at least 280 px as fit.
-   Modifiers: --stats (4-up stat row, 2-up when narrow), --split (2:1 row, stacks when narrow).
+   Modifiers: --stats (4-up stat row, 2-up when narrow), --split (2:1 row, stacks when narrow),
+              --halves (1:1 row of equal-height cells, stacks when narrow). Halves nest: a half holding
+              another --halves lines up with the four --stats columns above it.
    Narrow = the nearest inline-size container (.ts-app-main, .ts-sheet-body) is under 880 px
    (--size-pane-narrow; a @container condition cannot read var(), so the value is repeated here). */
 .ts-grid {
@@ -246,9 +248,10 @@ body:has(> .ts-app) { overflow: hidden; }
 }
 .ts-grid--stats { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch; }
 .ts-grid--split { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.ts-grid--halves { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
 @container (inline-size < 880px) {
   .ts-grid--stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ts-grid--split { grid-template-columns: minmax(0, 1fr); }
+  .ts-grid--split, .ts-grid--halves { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── List ────────────────────────────────────────────────────────────────────

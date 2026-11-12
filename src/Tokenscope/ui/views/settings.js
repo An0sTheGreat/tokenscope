@@ -1,6 +1,7 @@
 // Settings: appearance, engine options, behaviour, export and credits. Changes apply immediately.
 
 import { h } from '../dom.js';
+import { relative } from '../format.js';
 import { icon as glyph, row, list, segmented, switchInput } from '../kit.js';
 
 export const id = 'settings';
@@ -10,7 +11,7 @@ export const icon = () => glyph('settings');
 export const filters = false;
 export const needsData = false;
 
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.1.0';
 const ENGINE_VERSION = '20.0.50';
 const REPO_URL = 'https://github.com/ccusage/ccusage';
 const LICENSE_URL = 'https://github.com/ccusage/ccusage/blob/main/LICENSE';
@@ -52,6 +53,7 @@ const tokenLimit = v => {
   if (!/^\d{1,12}$/.test(v) || Number(v) < 1) throw new Error('Enter a whole number of tokens, or "max".');
   return String(Number(v));
 };
+const machineName = v => v.replace(/[\u0000-\u001f]/g, '').slice(0, 40);
 const refreshSec = v => {
   const n = Number(v);
   if (!/^\d+$/.test(v) || n < 15 || n > 600) throw new Error('Enter 15 to 600 seconds.');
@@ -59,7 +61,8 @@ const refreshSec = v => {
 };
 
 export function render(el, ctx) {
-  const { settings, actions, vm } = ctx;
+  const { settings, actions, vm, sync, nowMs } = ctx;
+  const others = (vm?.all.machines ?? []).filter(m => !m.local);
   const set = key => value => actions.setSetting(key, value);
   const exportButtons = what => h('span', { class: 'ts-toolbar-group' }, ['csv', 'json'].map(format =>
     h('button', { class: 'ts-button ts-button--tinted', attrs: { type: 'button', disabled: !vm }, onclick: () => actions.exportData(what, format) }, glyph('download'), format.toUpperCase())));
@@ -95,6 +98,23 @@ export function render(el, ctx) {
       }) }),
       row({ title: 'Keep running in the tray', subtitle: 'Closing the window hides it; use Quit in the tray menu to exit.', trailing: switchInput({ label: 'Keep running in the tray', checked: settings.closeToTray, onChange: set('closeToTray') }) }),
     ]),
+    list('Machines', [
+      row({
+        title: 'Sync folder', subtitle: sync.folder ?? 'Off. Choose a folder that all your PCs share, such as one inside Google Drive.',
+        trailing: h('span', { class: 'ts-toolbar-group' },
+          h('button', { class: 'ts-button ts-button--tinted', attrs: { type: 'button' }, onclick: actions.pickSyncFolder }, sync.folder ? 'Change' : 'Choose folder'),
+          sync.folder ? h('button', { class: 'ts-button ts-button--plain', attrs: { type: 'button' }, onclick: actions.syncOff }, 'Turn off') : null),
+      }),
+      row({ title: 'Name of this PC', subtitle: 'How this PC is labelled on the others.', trailing: field({
+        label: 'Name of this PC', value: settings.machineName, placeholder: sync.machine || 'This PC', parse: machineName, onCommit: set('machineName'),
+      }) }),
+      sync.folder ? row({
+        title: sync.error ? 'Sync failed' : others.length ? `${others.length} other PC${others.length === 1 ? '' : 's'} found` : 'No other PC found yet',
+        subtitle: sync.error ?? (others.length
+          ? others.map(m => `${m.name}, synced ${m.savedAt ? relative(new Date(m.savedAt).toISOString(), nowMs) : 'at an unknown time'}`).join(' · ')
+          : 'Open Tokenscope on another PC and choose the same folder there.'),
+      }) : null,
+    ].filter(Boolean), 'Each PC writes one small summary file here (project names, tokens and costs; no code or conversations) and reads the others. Blocks and the tray meter always show this PC.'),
     list('Export', [
       row({ title: 'Daily usage', subtitle: 'The days in the current range and source filter.', trailing: exportButtons('daily') }),
       row({ title: 'Sessions', subtitle: 'The sessions in the current range and source filter.', trailing: exportButtons('sessions') }),
@@ -104,6 +124,6 @@ export function render(el, ctx) {
       row({ title: 'PolyForm Noncommercial License 1.0.0', subtitle: APP_NOTICE, trailing: link('Licence', APP_LICENSE_URL) }),
       row({ title: `ccusage ${ENGINE_VERSION}`, subtitle: 'The bundled engine that reads the logs and prices them. MIT licence, © ryoppippi.', trailing: h('span', { class: 'ts-toolbar-group' }, link('Project', REPO_URL), link('Licence', LICENSE_URL)) }),
       row({ title: 'Design gallery', subtitle: 'Every component and token used by this app.', onClick: () => { location.href = 'design/gallery.html'; } }),
-    ], 'Shortcuts: 1–6 switch screens, R refreshes.'),
+    ], 'Shortcuts: 1–7 switch screens, R refreshes.'),
   ].flat().filter(Boolean));
 }

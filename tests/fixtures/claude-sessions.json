@@ -6453,8 +6453,8 @@
    "cacheReadTokens": 42736038,
    "totalCost": 24.7332117,
    "totalTokens": 44120970,
-   "firstActivity": "2026-11-12T12:14:47.000Z",
-   "lastActivity": "2026-11-12T13:28:47.000Z",
+   "firstActivity": "2026-11-12T11:00:05.000Z",
+   "lastActivity": "2026-11-12T12:14:05.000Z",
    "projectPath": "C--Users-dev-Documents-storefront-web",
    "sessionId": "43956427-59e7-4787-8741-62595fc9cfa9"
   },
@@ -6489,8 +6489,8 @@
    "cacheReadTokens": 8564666,
    "totalCost": 10.3632571,
    "totalTokens": 10123518,
-   "firstActivity": "2026-11-12T11:51:47.000Z",
-   "lastActivity": "2026-11-12T13:11:47.000Z",
+   "firstActivity": "2026-11-12T10:37:05.000Z",
+   "lastActivity": "2026-11-12T11:57:05.000Z",
    "projectPath": "C--Users-dev-Documents-data-pipeline",
    "sessionId": "ade67e4c-fd06-457a-8a67-5a1442a82702"
   },
@@ -6525,8 +6525,8 @@
    "cacheReadTokens": 9975099,
    "totalCost": 5.3052696,
    "totalTokens": 10728156,
-   "firstActivity": "2026-11-12T11:28:47.000Z",
-   "lastActivity": "2026-11-12T13:48:47.000Z",
+   "firstActivity": "2026-11-12T10:14:05.000Z",
+   "lastActivity": "2026-11-12T12:34:05.000Z",
    "projectPath": "C--Users-dev-Documents-docs-site",
    "sessionId": "3a8b246c-9c8f-4d30-8ea5-f0aea991db45"
   }

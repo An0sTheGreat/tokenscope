@@ -11573,7 +11573,7 @@
    "totalTokens": 10123518,
    "period": "ade67e4c-fd06-457a-8a67-5a1442a82702",
    "metadata": {
-    "lastActivity": "2026-11-12T13:11:47.000Z"
+    "lastActivity": "2026-11-12T11:57:05.000Z"
    }
   },
   {
@@ -13345,7 +13345,7 @@
    "totalTokens": 44120970,
    "period": "43956427-59e7-4787-8741-62595fc9cfa9",
    "metadata": {
-    "lastActivity": "2026-11-12T13:28:47.000Z"
+    "lastActivity": "2026-11-12T12:14:05.000Z"
    }
   },
   {
@@ -17547,9 +17547,9 @@
    "cacheReadTokens": 6639828,
    "totalCost": 2.4322035,
    "totalTokens": 7415886,
-   "period": "2026/11/12/rollout-2026-11-12T12-27-47-42b6c5e7-9b75-441c-8c12-f502e58cbc2a",
+   "period": "2026/11/12/rollout-2026-11-12T11-13-05-42b6c5e7-9b75-441c-8c12-f502e58cbc2a",
    "metadata": {
-    "lastActivity": "2026-11-12T12:27:47.000Z",
+    "lastActivity": "2026-11-12T11:13:05.000Z",
     "reasoningOutputTokens": 67292
    }
   },
@@ -17668,7 +17668,7 @@
    "totalTokens": 10728156,
    "period": "3a8b246c-9c8f-4d30-8ea5-f0aea991db45",
    "metadata": {
-    "lastActivity": "2026-11-12T13:48:47.000Z"
+    "lastActivity": "2026-11-12T12:34:05.000Z"
    }
   },
   {
