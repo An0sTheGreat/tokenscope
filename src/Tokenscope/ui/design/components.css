@@ -872,6 +872,7 @@ select.ts-field-input { appearance: none; cursor: default; & option { background
 .ts-rank-chevron { flex: none; inline-size: var(--size-dot); block-size: var(--size-dot); fill: none; stroke: var(--color-label-2); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: rotate var(--spring-snappy); }
 .ts-rank-toggle[aria-expanded="true"] .ts-rank-chevron { rotate: 90deg; }
 .ts-rank-more { display: grid; gap: var(--space-3); margin-block-start: var(--space-4); padding-inline-start: var(--space-4); }
+.ts-rank-more[hidden] { display: none; }   /* display: grid above would otherwise beat the hidden attribute */
 
 /* ── Reduced motion ──────────────────────────────────────────────────────────
    Everything collapses to a 120 ms opacity fade: no travel, no scale, no shimmer, no springs. */
